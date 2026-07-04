@@ -18,6 +18,12 @@ const C_VWAP = '#0891b2'
 
 const fmt = (n) => (n == null || Number.isNaN(n) ? '-' : Number(n).toLocaleString('ko-KR'))
 
+// 자동매매 조건 라벨(BN strategy 응답 키 → 한글)
+const CONDLABEL = {
+  rsi_oversold: 'RSI과매도', bb_lower: '볼린저하단', vol_confirm: '거래량', stoch_oversold: '스토캐과매도', macd_golden: 'MACD골든', adx_trend: 'ADX추세',
+  rsi_overbought: 'RSI과매수', stoch_overbought: '스토캐과매수', macd_dead: 'MACD데드', bb_upper: '볼린저상단',
+}
+
 export default function App() {
   const [market, setMarket] = useState('KRW-BTC')
   const [unit, setUnit] = useState(5)
@@ -360,13 +366,13 @@ export default function App() {
                   <div className={`strat-decide d-${strategy.decision}`}>
                     {strategy.decision === 'buy' ? '▲ 매수' : strategy.decision === 'sell' ? '▼ 매도' : '― 보류'}
                   </div>
-                  <table className="kv"><tbody>
-                    <tr><th>RSI 과매도 재돌파</th><td>{strategy.entry.rsiOversoldCross ? '✓' : '·'}</td></tr>
-                    <tr><th>MACD 골든</th><td>{strategy.entry.macdBull ? '✓' : '·'}</td></tr>
-                    <tr><th>ADX≥{strategy.thresholds.adxMin}</th><td>{strategy.entry.adxTrend ? '✓' : '·'}</td></tr>
-                    <tr><th>거래량 {strategy.thresholds.volMult}배</th><td>{strategy.entry.volConfirm ? '✓' : '·'}</td></tr>
-                  </tbody></table>
-                  <div className="mut" style={{ padding: '4px 10px' }}>RSI {strategy.values.rsi} · ADX {strategy.values.adx} · 거래량 {strategy.values.volRatio}배</div>
+                  <div className="mut" style={{ padding: '2px 10px' }}>
+                    매수({strategy.buy.logic}): {Object.entries(strategy.buy.conditions).map(([k, v]) => `${CONDLABEL[k] || k} ${v ? '✓' : '·'}`).join(' · ') || '조건 없음'}
+                  </div>
+                  <div className="mut" style={{ padding: '2px 10px' }}>
+                    매도({strategy.sell.logic}): {Object.entries(strategy.sell.conditions).map(([k, v]) => `${CONDLABEL[k] || k} ${v ? '✓' : '·'}`).join(' · ') || '조건 없음'}
+                  </div>
+                  <div className="mut" style={{ padding: '4px 10px', borderTop: '1px solid var(--panel2)' }}>RSI {strategy.values.rsi} · ADX {strategy.values.adx} · Stoch {strategy.values.stochK} · 거래량 {strategy.values.volRatio}배</div>
                 </div>
               ) : (<div className="empty" style={{ padding: 12 }}>{strategy?.reason ?? '-'}</div>)}
             </div>
