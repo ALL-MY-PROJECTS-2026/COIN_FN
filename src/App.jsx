@@ -18,6 +18,19 @@ const C_VWAP = '#0891b2'
 
 const fmt = (n) => (n == null || Number.isNaN(n) ? '-' : Number(n).toLocaleString('ko-KR'))
 
+// 히스토리 병합: 최신 fetch로 꼬리 갱신 / 과거 청크 앞에 붙이기 (candles+indicators 동시)
+function mergeTail(hist, recent) {
+  if (!hist || !hist.candles.length) return recent
+  if (!recent || !recent.candles.length) return hist
+  const cut = recent.candles[0].timestamp
+  const keep = []
+  for (let i = 0; i < hist.candles.length; i++) if (hist.candles[i].timestamp < cut) keep.push(i)
+  const pick = (arr) => (arr ? keep.map((i) => arr[i]) : [])
+  const candles = keep.map((i) => hist.candles[i]).concat(recent.candles)
+  const ind = {}
+  for (const k of Object.keys(recent.ind || {})) ind[k] = pick(hist.ind && hist.ind[k]).concat(recent.ind[k])
+  return { candles, ind }
+}
 // 자동매매 조건 라벨(BN strategy 응답 키 → 한글)
 const CONDLABEL = {
   rsi_oversold: 'RSI과매도', bb_lower: '볼린저하단', vol_confirm: '거래량', stoch_oversold: '스토캐과매도', macd_golden: 'MACD골든', adx_trend: 'ADX추세',
@@ -52,6 +65,7 @@ export default function App() {
   const barRef = useRef(null) // 형성 중 마지막 봉 {time,open,high,low,close}
   const reqRef = useRef(0) // 최신 로드 요청 id(마켓 전환 레이스 방지)
   const fitKeyRef = useRef('') // fitContent는 마켓/분봉 변경 시에만(주기갱신 시 줌 유지)
+  const histRef = useRef({ candles: [], ind: null, key: '' }) // 전체 히스토리(300봉)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -82,7 +96,7 @@ export default function App() {
     try {
       const q = `market=${market}&unit=${unit}&count=200`
       const [ind, sig, bt, rg, st] = await Promise.all([
-        fetch(`${BN_URL}/api/indicators?${q}`).then((r) => { if (!r.ok) throw new Error(`BN ${r.status}`); return r.json() }),
+        fetch(`${BN_URL}/api/indicators?market=${market}&unit=${unit}&count=300`).then((r) => { if (!r.ok) throw new Error(`BN ${r.status}`); return r.json() }),
         fetch(`${BN_URL}/api/strategy-signals?${q}`).then((r) => r.ok ? r.json() : { signals: [] }),
         fetch(`${BN_URL}/api/backtest?${q}`).then((r) => r.ok ? r.json() : { backtest: null }),
         fetch(`${BN_URL}/api/regime?${q}`).then((r) => r.ok ? r.json() : null),
@@ -91,6 +105,8 @@ export default function App() {
       if (reqRef.current !== myReq) return  // 뒤늦게 온 이전 마켓 응답 무시(레이스 방지)
       const candles = ind.candles || []
       if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setBacktest(null); setRegime(null); setStrategy(null); setStatus('empty'); return }
+      histRef.current = { candles, ind: ind.indicators, key: `${market}_${unit}` }
+      viewRef.current = null // 새 마켓/분봉 → 초기뷰
       setData({ candles, indicators: ind.indicators })
       setSignals(sig.signals || [])
       setBacktest(bt.backtest || null)
@@ -153,16 +169,20 @@ export default function App() {
     return () => { closed = true; try { ws && ws.close() } catch { /* noop */ } }
   }, [market, unit])
 
-  // 주기적 지표 갱신(8초) — EMA/VWAP/RSI/MACD가 형성 중 캔들과 함께 움직이게(줌은 유지)
+  // 주기적 지표 갱신(8초) — 최근 200봉으로 꼬리 갱신(과거 히스토리는 유지), 줌 유지
   useEffect(() => {
     let alive = true
     const my = reqRef.current
+    const key = `${market}_${unit}`
     const tick = async () => {
       try {
         const ind = await fetch(`${BN_URL}/api/indicators?market=${market}&unit=${unit}&count=200`).then((r) => (r.ok ? r.json() : null))
-        if (!alive || !ind || reqRef.current !== my) return
-        const candles = ind.candles || []
-        if (candles.length) setData({ candles, indicators: ind.indicators })
+        if (!alive || !ind || reqRef.current !== my || histRef.current.key !== key) return
+        const recent = { candles: ind.candles || [], ind: ind.indicators }
+        if (!recent.candles.length) return
+        const merged = mergeTail(histRef.current, recent)
+        histRef.current = { ...histRef.current, candles: merged.candles, ind: merged.ind }
+        setData({ candles: merged.candles, indicators: merged.ind }) // setData가 표시범위 자동 유지
       } catch { /* noop */ }
     }
     const id = setInterval(tick, 8000)
@@ -278,13 +298,12 @@ export default function App() {
       shape: m.type === 'buy' ? 'arrowUp' : 'arrowDown',
       text: m.type === 'buy' ? '매수' : '매도',
     })))
-    // fitContent는 마켓/분봉 바뀔 때만(주기 갱신 땐 줌·스크롤 유지)
+    // 마켓/분봉 바뀔 때만 전체 히스토리 맞춤(fit). 갱신 시엔 setData가 표시범위 자동 유지
     const fitKey = `${market}_${unit}`
     if (fitKeyRef.current !== fitKey) {
       chartRef.current?.timeScale().fitContent()
-      const sb = subRef.current
-      sb.rsiChart?.timeScale().fitContent()
-      sb.macdChart?.timeScale().fitContent()
+      subRef.current.rsiChart?.timeScale().fitContent()
+      subRef.current.macdChart?.timeScale().fitContent()
       fitKeyRef.current = fitKey
     }
   }, [data, signals, show, market, unit])
