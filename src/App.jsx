@@ -296,14 +296,17 @@ export default function App() {
           )}
           {paper && (
             <div className="regime-card">
-              <div className="rg-title">페이퍼 계정 <span style={{ color: paper.autotrader?.running ? BUY : 'var(--muted)' }}>{paper.autotrader?.running ? '● 자동' : '○ 정지'}</span></div>
+              <div className="rg-title">페이퍼 계정 <span style={{ color: paper.halted ? SELL : (paper.autotrader?.running ? BUY : 'var(--muted)') }}>{paper.halted ? '■ 낙폭정지' : (paper.autotrader?.running ? '● 자동' : '○ 정지')}</span></div>
               <div className="rg-label" style={{ color: paper.totalReturnPct >= 0 ? UP : DOWN, fontSize: 16 }}>
                 {paper.totalReturnPct >= 0 ? '+' : ''}{paper.totalReturnPct}%
               </div>
-              <div className="rg-adx">평가 {fmt(paper.equity)}원</div>
+              <div className="rg-adx">평가 {fmt(paper.equity)}원 <span style={{ color: 'var(--muted)', fontWeight: 400 }}>낙폭 {paper.drawdownPct}%</span></div>
               <div className="rg-rec">실현 {fmt(paper.realizedPnl)} · 미실현 {fmt(paper.unrealizedPnl)} · {paper.tradeCount}거래</div>
+              {paper.risk && (
+                <div className="rg-rec" style={{ marginTop: 3 }}>리스크: 손절 {paper.risk.stopPct}% · 트레일 {paper.risk.trailPct}% · 익절 {paper.risk.targetPct}% · 정지 {paper.risk.maxDdPct}%</div>
+              )}
               {paper.positions?.length > 0 && (
-                <div className="rg-rec" style={{ marginTop: 4 }}>보유: {paper.positions.map((p) => `${p.market.replace('KRW-', '')} ${p.unrealizedPct}%`).join(', ')}</div>
+                <div className="rg-rec" style={{ marginTop: 3 }}>보유: {paper.positions.map((p) => `${p.market.replace('KRW-', '')} ${p.unrealizedPct}% (손절 ${fmt(p.stop)})`).join(', ')}</div>
               )}
             </div>
           )}
