@@ -5,3 +5,6 @@
 export const BN_URL =
   import.meta.env.VITE_BN_URL ||
   'https://pensions-brian-distinct-bishop.trycloudflare.com'
+
+// WebSocket URL (https→wss, http→ws)
+export const BN_WS = BN_URL.replace(/^http/, 'ws')

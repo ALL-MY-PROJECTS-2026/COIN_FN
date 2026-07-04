@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createChart } from 'lightweight-charts'
-import { BN_URL } from './config.js'
+import { BN_URL, BN_WS } from './config.js'
 
 const UNITS = [1, 3, 5, 15, 60, 240]
 const MARKETS = ['KRW-BTC', 'KRW-ETH', 'KRW-XRP', 'KRW-SOL', 'KRW-DOGE']
@@ -29,10 +29,13 @@ export default function App() {
   const [signals, setSignals] = useState([])
   const [backtest, setBacktest] = useState(null)
   const [err, setErr] = useState('')
+  const [live, setLive] = useState(null)      // {price} 실시간 체결가
+  const [liveOn, setLiveOn] = useState(false) // WS 연결 여부
 
   const elRef = useRef(null)
   const chartRef = useRef(null)
   const sRef = useRef({}) // series refs
+  const barRef = useRef(null) // 형성 중 마지막 봉 {time,open,high,low,close}
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -69,6 +72,42 @@ export default function App() {
 
   useEffect(() => { load() }, [load])
 
+  // 실시간 WebSocket — 형성 중 마지막 봉을 체결가로 갱신
+  useEffect(() => {
+    setLive(null); setLiveOn(false)
+    let ws
+    let closed = false
+    try {
+      ws = new WebSocket(`${BN_WS}/ws/ticker?market=${market}`)
+    } catch { return }
+    const bucketSec = unit * 60
+    ws.onopen = () => !closed && setLiveOn(true)
+    ws.onclose = () => !closed && setLiveOn(false)
+    ws.onerror = () => !closed && setLiveOn(false)
+    ws.onmessage = (ev) => {
+      if (closed) return
+      let m
+      try { m = JSON.parse(ev.data) } catch { return }
+      const price = m.price
+      if (price == null) return
+      setLive({ price })
+      const cs = sRef.current.candle
+      const bar = barRef.current
+      if (!cs || !bar) return
+      const tsSec = Math.floor((m.ts ?? Date.now()) / 1000)
+      const bucket = Math.floor(tsSec / bucketSec) * bucketSec
+      let next
+      if (bucket > bar.time) {
+        next = { time: bucket, open: price, high: price, low: price, close: price }
+      } else {
+        next = { time: bar.time, open: bar.open, high: Math.max(bar.high, price), low: Math.min(bar.low, price), close: price }
+      }
+      barRef.current = next
+      try { cs.update(next) } catch { /* 차트 재생성 타이밍 무시 */ }
+    }
+    return () => { closed = true; try { ws && ws.close() } catch { /* noop */ } }
+  }, [market, unit])
+
   // 차트 생성 (테마 변경 시 재생성)
   useEffect(() => {
     if (!elRef.current) return
@@ -98,6 +137,8 @@ export default function App() {
     if (!s.candle || candles.length === 0) return
     const t = (c) => Math.floor(c.timestamp / 1000)
     s.candle.setData(candles.map((c) => ({ time: t(c), open: c.open, high: c.high, low: c.low, close: c.close })))
+    const lc = candles[candles.length - 1]
+    barRef.current = { time: t(lc), open: lc.open, high: lc.high, low: lc.low, close: lc.close }
     s.vol.setData(candles.map((c) => ({ time: t(c), value: c.volume, color: c.close >= c.open ? UP : DOWN })))
     const line = (arr) => arr ? candles.map((c, i) => ({ time: t(c), value: arr[i] })).filter((p) => p.value != null) : []
     s.ema20.setData(show.ema20 && indicators ? line(indicators.ema20) : [])
@@ -118,8 +159,9 @@ export default function App() {
   const ind = data.indicators
   const last = candles[candles.length - 1]
   const prev = candles[candles.length - 2]
-  const chg = last && prev ? last.close - prev.close : 0
-  const chgPct = last && prev ? (chg / prev.close) * 100 : 0
+  const curPrice = live?.price ?? last?.close   // 실시간 체결가 우선
+  const chg = curPrice != null && prev ? curPrice - prev.close : 0
+  const chgPct = curPrice != null && prev ? (chg / prev.close) * 100 : 0
   const up = chg >= 0
   const rsi = ind?.rsi14?.filter((v) => v != null).slice(-1)[0]
 
@@ -129,6 +171,7 @@ export default function App() {
         <div className="brand">COIN <span className="tag">자동매매 · 교육용</span></div>
         <div className="status">
           <span className={`badge ${health ? 'on' : 'off'}`}>BN {health ? '연결' : '끊김'}</span>
+          <span className={`badge ${liveOn ? 'on' : 'off'}`}>{liveOn ? '● 실시간' : '○ 실시간'}</span>
           <span className="badge">stage: {health?.stage ?? '-'}</span>
           <span className={`badge ${health?.mode === 'live' ? 'live' : ''}`}>{health?.mode ?? '-'}</span>
           <button className="btn icon" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>{theme === 'light' ? '다크' : '라이트'}</button>
@@ -154,7 +197,7 @@ export default function App() {
         <main className="main">
           <div className="pricebar">
             <div className="pair">{market}</div>
-            <div className="last" style={{ color: up ? UP : DOWN }}>{last ? fmt(last.close) : '-'} <span className="won">KRW</span></div>
+            <div className="last" style={{ color: up ? UP : DOWN }}>{curPrice != null ? fmt(curPrice) : '-'} <span className="won">KRW</span></div>
             <div className="chg" style={{ color: up ? UP : DOWN }}>{last && prev ? `${up ? '▲' : '▼'} ${up ? '+' : ''}${fmt(Math.round(chg))} (${chgPct.toFixed(2)}%)` : ''}</div>
             <div className="spacer" />
             <div className="units">
