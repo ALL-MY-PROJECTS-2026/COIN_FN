@@ -220,7 +220,7 @@ export default function App() {
       rightPriceScale: { borderColor: dark ? '#2a313c' : '#d0d0d0', minimumWidth: 88 },
       timeScale: { borderColor: dark ? '#2a313c' : '#d0d0d0', timeVisible: true },
       crosshair: { horzLine: { visible: false } }, // 세로선만(가로선 잔상 방지)
-      autoSize: true,
+      // autoSize는 서브차트 초기 사이징에 실패(canvas 버퍼 300x150 고정) → 아래 수동 리사이즈 사용
     })
     const rsiChart = mkSub(rsiElRef.current)
     const rsiLine = rsiChart.addLineSeries({ color: '#8b5cf6', lineWidth: 1 })
@@ -232,6 +232,19 @@ export default function App() {
     const macdSig = macdChart.addLineSeries({ color: '#e08e0b', lineWidth: 1 })
     subRef.current = { rsiChart, macdChart, rsiLine, macdHist, macdLine, macdSig }
     if (import.meta.env.DEV) window.__charts = { chart, rsiChart, macdChart }
+
+    // 서브차트 수동 리사이즈: 컨테이너 실측 크기로 canvas 버퍼를 맞춤(autoSize 대체)
+    const sizeSub = () => {
+      for (const [el, c] of [[rsiElRef.current, rsiChart], [macdElRef.current, macdChart]]) {
+        if (!el || !c) continue
+        const w = Math.floor(el.clientWidth), h = Math.floor(el.clientHeight)
+        if (w > 0 && h > 0) { try { c.resize(w, h) } catch { /* noop */ } }
+      }
+    }
+    const subRO = new ResizeObserver(sizeSub)
+    if (rsiElRef.current) subRO.observe(rsiElRef.current)
+    if (macdElRef.current) subRO.observe(macdElRef.current)
+    requestAnimationFrame(sizeSub)  // 초기 강제 사이징(레이아웃 확정 후)
 
     // 시간축(가로 스크롤·줌) 동기화 — 어느 차트를 조작해도 3개가 같이 움직임
     const allCharts = [chart, rsiChart, macdChart]
@@ -256,6 +269,7 @@ export default function App() {
     for (const [c] of pairs) c.subscribeCrosshairMove(syncCross(c))
 
     return () => {
+      subRO.disconnect()
       chart.remove(); rsiChart.remove(); macdChart.remove()
       chartRef.current = null; sRef.current = {}; subRef.current = {}
     }
