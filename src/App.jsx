@@ -441,19 +441,27 @@ export default function App() {
                     </div>
                   ) : (<div className="empty" style={{ padding: 8 }}>보유 없음</div>)}
                   {paper.byMarket?.length > 0 && (
-                    <div className="log" style={{ borderTop: '1px solid var(--panel2)', marginTop: 4 }}>
-                      {paper.byMarket.map((b, i) => (
-                        <div key={i} className="log-row"><span className="lt">{b.market.replace('KRW-', '')}</span><span className="lr">{b.count}거래·{b.wins}승</span><span className="lp" style={{ color: b.pnl >= 0 ? UP : DOWN }}>{fmt(b.pnl)}</span></div>
-                      ))}
-                    </div>
+                    <>
+                      <div className="panel-sub">종목별 집계</div>
+                      <div className="log">
+                        {paper.byMarket.map((b, i) => (
+                          <div key={i} className="log-row"><span className="lt">{b.market.replace('KRW-', '')}</span><span className="lr">{b.count}거래 · {b.wins}승</span><span className="lp" style={{ color: b.pnl >= 0 ? UP : DOWN }}>{fmt(b.pnl)}원</span></div>
+                        ))}
+                      </div>
+                    </>
                   )}
+                  <div className="panel-sub">거래 내역 (청산 완료)</div>
                   {paper.trades?.length > 0 ? (
                     <div className="log">
-                      {paper.trades.slice().reverse().slice(0, 6).map((t, i) => (
-                        <div key={i} className="log-row"><span className="lt">{t.market.replace('KRW-', '')}</span><span className="lp" style={{ color: t.pnl >= 0 ? UP : DOWN }}>{t.pnlPct >= 0 ? '+' : ''}{t.pnlPct}%</span><span className="lr">{t.reason}</span></div>
+                      {paper.trades.slice().reverse().map((t, i) => (
+                        <div key={i} className="log-row">
+                          <span className="lt">{t.market.replace('KRW-', '')}</span>
+                          <span className="lr">{fmt(t.entry)}→{fmt(t.exit)}</span>
+                          <span className="lp" style={{ color: t.pnl >= 0 ? UP : DOWN }}>{t.pnl >= 0 ? '+' : ''}{fmt(t.pnl)}원 ({t.pnlPct >= 0 ? '+' : ''}{t.pnlPct}%)</span>
+                        </div>
                       ))}
                     </div>
-                  ) : (<div className="empty" style={{ padding: 10 }}>거래 없음 (조건 충족 시 자동 체결)</div>)}
+                  ) : (<div className="empty" style={{ padding: 10 }}>아직 청산된 거래 없음 (보유 중이거나 대기)</div>)}
                 </div>
               ) : (<div className="empty" style={{ padding: 12 }}>-</div>)}
             </div>
