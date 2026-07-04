@@ -83,16 +83,15 @@ body {
 .sub-h .mut { color: var(--muted); font-weight: 400; }
 .sub-chart { height: 96px; position: relative; }
 
-/* 하단 패널: 지표요약 + 신호로그 */
-.panels { display: flex; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--panel); }
-.panel { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); min-width: 200px; }
-.panel.grow { flex: 1; }
+/* 하단 패널: 반응형 그리드(카드가 내용 높이에 맞춰 정렬, 내부 스크롤 없음) */
+.panels { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--panel); align-items: start; }
+.panel { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); min-width: 0; }
 .panel-h { padding: 7px 10px; border-bottom: 1px solid var(--line); font-weight: 700; font-size: 13px; color: var(--muted); }
 .panel-h .cnt { color: var(--accent); margin-left: 6px; }
 .kv { width: 100%; border-collapse: collapse; }
 .kv th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 10px; }
 .kv td { text-align: right; padding: 6px 10px; font-weight: 600; }
-.log { max-height: 160px; overflow-y: auto; }
+.log { }  /* 내부 스크롤 없음 — 항목 수를 render에서 제한 */
 .log-row { display: flex; gap: 10px; padding: 5px 10px; border-bottom: 1px solid var(--panel2); font-size: 12.5px; }
 .log-row .lt { color: var(--muted); flex: 0 0 88px; }
 .log-row .ly { flex: 0 0 52px; font-weight: 700; }
@@ -121,6 +120,5 @@ body {
   .watchlist { display: flex; gap: 4px; margin: 0; }
   .wl-item { margin: 0; white-space: nowrap; }
   .toggles { flex-direction: row; }
-  .panels { flex-direction: column; }
   .pricebar .last { font-size: 22px; }
 }

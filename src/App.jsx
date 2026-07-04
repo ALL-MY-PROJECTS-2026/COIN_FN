@@ -369,9 +369,9 @@ export default function App() {
             </div>
             <div className="panel">
               <div className="panel-h">최근 체결 <span className="cnt">업비트</span></div>
-              <div className="log" style={{ maxHeight: 160 }}>
+              <div className="log">
                 {trades.length === 0 && <div className="empty">-</div>}
-                {trades.map((t, i) => (
+                {trades.slice(0, 8).map((t, i) => (
                   <div key={i} className="log-row">
                     <span className="lt">{(t.time || '').slice(0, 8)}</span>
                     <span className="lp" style={{ color: t.side === 'bid' ? UP : DOWN }}>{fmt(t.price)}</span>
@@ -422,7 +422,7 @@ export default function App() {
               <div className="panel-h">신호 로그 <span className="cnt">{signals.length}</span></div>
               <div className="log">
                 {signals.length === 0 && <div className="empty">신호 없음</div>}
-                {signals.slice().reverse().map((m, i) => (
+                {signals.slice().reverse().slice(0, 8).map((m, i) => (
                   <div key={i} className="log-row">
                     <span className="lt">{m.time.slice(5, 16).replace('T', ' ')}</span>
                     <span className="ly" style={{ color: m.type === 'buy' ? BUY : SELL }}>{m.type === 'buy' ? '▲매수' : '▼매도'}</span>
