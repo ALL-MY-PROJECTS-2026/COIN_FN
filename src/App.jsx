@@ -469,6 +469,19 @@ export default function App() {
                       </div>
                     </>
                   )}
+                  <div className="panel-sub">매매 로그 (매수·매도 전체{paper.eventCount ? ` · ${paper.eventCount}건` : ''})</div>
+                  {paper.events?.length > 0 ? (
+                    <div className="log">
+                      {paper.events.slice().reverse().map((e, i) => (
+                        <div key={i} className="log-row">
+                          <span className="ly" style={{ color: e.type === 'buy' ? UP : DOWN }}>{e.type === 'buy' ? '매수' : '매도'}</span>
+                          <span className="lt">{e.market.replace('KRW-', '')}</span>
+                          <span className="lr">{e.ts ? new Date(e.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : ''}{e.reason ? ` ${e.reason}` : ''}</span>
+                          <span className="lp">{fmt(e.price)}{e.type === 'sell' && e.pnl != null ? <span style={{ color: e.pnl >= 0 ? UP : DOWN }}> {e.pnl >= 0 ? '+' : ''}{fmt(e.pnl)}</span> : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (<div className="empty" style={{ padding: 10 }}>매매 기록 없음</div>)}
                   <div className="panel-sub">거래 내역 (청산 완료)</div>
                   {paper.trades?.length > 0 ? (
                     <div className="log">
