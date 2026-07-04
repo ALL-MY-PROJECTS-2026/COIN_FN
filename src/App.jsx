@@ -152,6 +152,7 @@ export default function App() {
     const macdLine = macdChart.addLineSeries({ color: '#2563eb', lineWidth: 1 })
     const macdSig = macdChart.addLineSeries({ color: '#e08e0b', lineWidth: 1 })
     subRef.current = { rsiChart, macdChart, rsiLine, macdHist, macdLine, macdSig }
+    if (import.meta.env.DEV) window.__charts = { chart, rsiChart, macdChart }
 
     // 시간축(가로 스크롤·줌) 동기화 — 어느 차트를 조작해도 3개가 같이 움직임
     const allCharts = [chart, rsiChart, macdChart]
@@ -197,12 +198,16 @@ export default function App() {
     s.vwap.setData(show.vwap && indicators ? line(indicators.vwap) : [])
 
     // 서브차트: RSI · MACD
+    // ★ 전체 캔들 시간대를 whitespace(값 없는 시간점)로 채워 시간축을 메인과 동일하게 →
+    //   워밍업으로 앞부분 값이 없어도 세 패널의 시간 범위가 일치해 세로선이 정렬됨.
+    const ws = (arr) => candles.map((c, i) => (arr[i] == null ? { time: t(c) } : { time: t(c), value: arr[i] }))
+    const wsHist = (arr) => candles.map((c, i) => (arr[i] == null ? { time: t(c) } : { time: t(c), value: arr[i], color: arr[i] >= 0 ? UP : DOWN }))
     const sub = subRef.current
     if (sub.rsiLine && indicators) {
-      sub.rsiLine.setData(line(indicators.rsi14))
-      sub.macdHist.setData(candles.map((c, i) => ({ time: t(c), value: indicators.macdHist[i], color: indicators.macdHist[i] >= 0 ? UP : DOWN })).filter((p) => p.value != null))
-      sub.macdLine.setData(line(indicators.macd))
-      sub.macdSig.setData(line(indicators.macdSignal))
+      sub.rsiLine.setData(ws(indicators.rsi14))
+      sub.macdHist.setData(wsHist(indicators.macdHist))
+      sub.macdLine.setData(ws(indicators.macd))
+      sub.macdSig.setData(ws(indicators.macdSignal))
       sub.rsiChart.timeScale().fitContent()
       sub.macdChart.timeScale().fitContent()
     }
