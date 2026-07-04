@@ -44,13 +44,10 @@ export default function App() {
   const [show, setShow] = useState({ ema20: true, ema50: true, vwap: false, bb: false })
   const [strategy, setStrategy] = useState(null)
   const [paper, setPaper] = useState(null)
-  const [book, setBook] = useState(null)
-  const [trades, setTrades] = useState([])
   const [status, setStatus] = useState('loading')
   const [health, setHealth] = useState(null)
   const [data, setData] = useState({ candles: [], indicators: null })
   const [signals, setSignals] = useState([])
-  const [backtest, setBacktest] = useState(null)
   const [regime, setRegime] = useState(null)
   const [err, setErr] = useState('')
   const [live, setLive] = useState(null)      // {price} 실시간 체결가
@@ -95,20 +92,18 @@ export default function App() {
     setStatus('loading'); setErr('')
     try {
       const q = `market=${market}&unit=${unit}&count=200`
-      const [ind, sig, bt, rg, st] = await Promise.all([
+      const [ind, sig, rg, st] = await Promise.all([
         fetch(`${BN_URL}/api/indicators?market=${market}&unit=${unit}&count=300`).then((r) => { if (!r.ok) throw new Error(`BN ${r.status}`); return r.json() }),
         fetch(`${BN_URL}/api/strategy-signals?${q}`).then((r) => r.ok ? r.json() : { signals: [] }),
-        fetch(`${BN_URL}/api/backtest?${q}`).then((r) => r.ok ? r.json() : { backtest: null }),
         fetch(`${BN_URL}/api/regime?${q}`).then((r) => r.ok ? r.json() : null),
         fetch(`${BN_URL}/api/strategy?${q}`).then((r) => r.ok ? r.json() : null),
       ])
       if (reqRef.current !== myReq) return  // 뒤늦게 온 이전 마켓 응답 무시(레이스 방지)
       const candles = ind.candles || []
-      if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setBacktest(null); setRegime(null); setStrategy(null); setStatus('empty'); return }
+      if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setRegime(null); setStrategy(null); setStatus('empty'); return }
       histRef.current = { candles, ind: ind.indicators, key: `${market}_${unit}` }
       setData({ candles, indicators: ind.indicators })
       setSignals(sig.signals || [])
-      setBacktest(bt.backtest || null)
       setRegime(rg)
       setStrategy(st)
       setStatus('ok')
@@ -119,18 +114,6 @@ export default function App() {
   }, [market, unit])
 
   useEffect(() => { load() }, [load])
-
-  // 호가 폴링(선택 마켓, 4초) — 업비트 호가/매수·매도벽
-  useEffect(() => {
-    let alive = true
-    const pull = () => {
-      fetch(`${BN_URL}/api/orderbook?market=${market}`).then((r) => r.ok ? r.json() : null).then((j) => alive && setBook(j)).catch(() => {})
-      fetch(`${BN_URL}/api/trades?market=${market}&count=15`).then((r) => r.ok ? r.json() : null).then((j) => alive && setTrades(j?.trades || [])).catch(() => {})
-    }
-    pull()
-    const id = setInterval(pull, 4000)
-    return () => { alive = false; clearInterval(id) }
-  }, [market])
 
   // 실시간 WebSocket — 형성 중 마지막 봉을 체결가로 갱신
   useEffect(() => {
@@ -342,7 +325,6 @@ export default function App() {
   }, [signals, paper, market, data, theme])
 
   const candles = data.candles
-  const ind = data.indicators
   const last = candles[candles.length - 1]
   const prev = candles[candles.length - 2]
   // 로딩 중(마켓 전환 직후)엔 실시간가 미사용 — 이전 마켓 캔들과 섞여 튀는 것 방지
@@ -350,7 +332,6 @@ export default function App() {
   const chg = curPrice != null && prev ? curPrice - prev.close : 0
   const chgPct = curPrice != null && prev ? (chg / prev.close) * 100 : 0
   const up = chg >= 0
-  const rsi = ind?.rsi14?.filter((v) => v != null).slice(-1)[0]
 
   return (
     <div className="app">
@@ -526,57 +507,6 @@ export default function App() {
                   ) : (<div className="empty" style={{ padding: 10 }}>아직 청산된 거래 없음 (보유 중이거나 대기)</div>)}
                 </div>
               ) : (<div className="empty" style={{ padding: 12 }}>-</div>)}
-            </div>
-            <div className="panel">
-              <div className="panel-h">최근 체결 <span className="cnt">업비트</span></div>
-              <div className="log">
-                {trades.length === 0 && <div className="empty">-</div>}
-                {trades.slice(0, 8).map((t, i) => (
-                  <div key={i} className="log-row">
-                    <span className="lt">{(t.time || '').slice(0, 8)}</span>
-                    <span className="lp" style={{ color: t.side === 'bid' ? UP : DOWN }}>{fmt(t.price)}</span>
-                    <span className="lr" style={{ textAlign: 'right' }}>{Number(t.volume).toFixed(4)}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="panel">
-              <div className="panel-h">호가 <span className="cnt">업비트</span></div>
-              {book?.units?.length ? (
-                <div className="book">
-                  {book.units.slice(0, 5).reverse().map((u, i) => (
-                    <div key={`a${i}`} className="book-row"><span className="bk-p" style={{ color: UP }}>{fmt(u.ask_price)}</span><span className="bk-s ask">{u.ask_size.toFixed(3)}</span></div>
-                  ))}
-                  {book.units.slice(0, 5).map((u, i) => (
-                    <div key={`b${i}`} className="book-row"><span className="bk-p" style={{ color: DOWN }}>{fmt(u.bid_price)}</span><span className="bk-s bid">{u.bid_size.toFixed(3)}</span></div>
-                  ))}
-                </div>
-              ) : (<div className="empty" style={{ padding: 12 }}>-</div>)}
-            </div>
-            <div className="panel">
-              <div className="panel-h">지표 요약</div>
-              <table className="kv"><tbody>
-                <tr><th>RSI(14)</th><td>{rsi ?? '-'}</td></tr>
-                <tr><th>ADX(14)</th><td>{ind?.adx14?.filter((v) => v != null).slice(-1)[0] ?? '-'}</td></tr>
-                <tr><th>스토캐스틱 %K/%D</th><td>{ind?.stochK?.filter((v) => v != null).slice(-1)[0] ?? '-'} / {ind?.stochD?.filter((v) => v != null).slice(-1)[0] ?? '-'}</td></tr>
-                <tr><th>EMA20</th><td>{fmt(ind?.ema20?.slice(-1)[0])}</td></tr>
-                <tr><th>EMA50</th><td>{fmt(ind?.ema50?.slice(-1)[0])}</td></tr>
-                <tr><th>VWAP</th><td>{fmt(ind?.vwap?.slice(-1)[0])}</td></tr>
-              </tbody></table>
-            </div>
-            <div className="panel">
-              <div className="panel-h">백테스트 <span className="cnt">비용차감</span></div>
-              {backtest && backtest.trades > 0 ? (
-                <table className="kv"><tbody>
-                  <tr><th>거래수</th><td>{backtest.trades}</td></tr>
-                  <tr><th>승률</th><td>{backtest.winRatePct}%</td></tr>
-                  <tr><th>총수익</th><td style={{ color: backtest.totalReturnPct >= 0 ? UP : DOWN }}>{backtest.totalReturnPct >= 0 ? '+' : ''}{backtest.totalReturnPct}%</td></tr>
-                  <tr><th>손익비(PF)</th><td>{backtest.profitFactor ?? '-'}</td></tr>
-                  <tr><th>MDD</th><td style={{ color: DOWN }}>{backtest.maxDrawdownPct}%</td></tr>
-                </tbody></table>
-              ) : (
-                <div className="empty" style={{ padding: 14 }}>{backtest ? `왕복거래 없음 (신호 매수/${backtest.buySignals} 매도/${backtest.sellSignals})` : '-'}</div>
-              )}
             </div>
             <div className="panel grow">
               <div className="panel-h">신호 로그 <span className="cnt">{signals.length}</span></div>
