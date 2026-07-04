@@ -121,7 +121,7 @@ export default function App() {
     const chart = createChart(elRef.current, {
       layout: { background: { color: dark ? '#161b22' : '#ffffff' }, textColor: dark ? '#e6edf3' : '#333', fontFamily: 'inherit' },
       grid: { vertLines: { color: dark ? '#222833' : '#eef1f5' }, horzLines: { color: dark ? '#222833' : '#eef1f5' } },
-      rightPriceScale: { borderColor: dark ? '#2a313c' : '#d0d0d0' },
+      rightPriceScale: { borderColor: dark ? '#2a313c' : '#d0d0d0', minimumWidth: 88 },
       timeScale: { borderColor: dark ? '#2a313c' : '#d0d0d0', timeVisible: true },
       autoSize: true,
     })
@@ -138,8 +138,9 @@ export default function App() {
     const mkSub = (el) => createChart(el, {
       layout: { background: { color: dark ? '#161b22' : '#ffffff' }, textColor: dark ? '#8b949e' : '#666', fontFamily: 'inherit' },
       grid: { vertLines: { color: dark ? '#222833' : '#eef1f5' }, horzLines: { color: dark ? '#222833' : '#eef1f5' } },
-      rightPriceScale: { borderColor: dark ? '#2a313c' : '#d0d0d0' },
+      rightPriceScale: { borderColor: dark ? '#2a313c' : '#d0d0d0', minimumWidth: 88 },
       timeScale: { borderColor: dark ? '#2a313c' : '#d0d0d0', timeVisible: true },
+      crosshair: { horzLine: { visible: false } }, // 세로선만(가로선 잔상 방지)
       autoSize: true,
     })
     const rsiChart = mkSub(rsiElRef.current)
@@ -152,11 +153,27 @@ export default function App() {
     const macdSig = macdChart.addLineSeries({ color: '#e08e0b', lineWidth: 1 })
     subRef.current = { rsiChart, macdChart, rsiLine, macdHist, macdLine, macdSig }
 
-    const sync = (r) => {
+    // 시간축(가로 스크롤·줌) 동기화 — 어느 차트를 조작해도 3개가 같이 움직임
+    const allCharts = [chart, rsiChart, macdChart]
+    const syncRange = (src) => (r) => {
       if (!r) return
-      try { rsiChart.timeScale().setVisibleLogicalRange(r); macdChart.timeScale().setVisibleLogicalRange(r) } catch { /* noop */ }
+      for (const c of allCharts) {
+        if (c === src) continue
+        try { c.timeScale().setVisibleLogicalRange(r) } catch { /* noop */ }
+      }
     }
-    chart.timeScale().subscribeVisibleLogicalRangeChange(sync)
+    for (const c of allCharts) c.timeScale().subscribeVisibleLogicalRangeChange(syncRange(c))
+
+    // 크로스헤어(세로선) 동기화 — 한 차트에 마우스 올리면 3개에 같은 시각 세로선
+    const pairs = [[chart, candle], [rsiChart, rsiLine], [macdChart, macdHist]]
+    const syncCross = (src) => (param) => {
+      for (const [c, series] of pairs) {
+        if (c === src) continue
+        if (param.time === undefined || !param.point) { try { c.clearCrosshairPosition() } catch { /* noop */ } continue }
+        try { c.setCrosshairPosition(0, param.time, series) } catch { /* noop */ }
+      }
+    }
+    for (const [c] of pairs) c.subscribeCrosshairMove(syncCross(c))
 
     return () => {
       chart.remove(); rsiChart.remove(); macdChart.remove()
