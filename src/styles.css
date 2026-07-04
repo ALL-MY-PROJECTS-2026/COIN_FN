@@ -76,6 +76,13 @@ body {
   border: 1px solid var(--line); background: var(--panel); padding: 6px 14px; color: var(--muted); border-radius: var(--r); }
 .overlay.err { border-color: var(--sell); color: var(--sell); }
 
+/* 지표 서브차트 (RSI · MACD) */
+.subpane { border-top: 1px solid var(--line); background: var(--panel); }
+.sub-h { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); font-weight: 700; padding: 3px 10px; }
+.sub-h .dot { width: 10px; height: 2px; display: inline-block; }
+.sub-h .mut { color: var(--muted); font-weight: 400; }
+.sub-chart { height: 96px; position: relative; }
+
 /* 하단 패널: 지표요약 + 신호로그 */
 .panels { display: flex; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--line); background: var(--panel); }
 .panel { border: 1px solid var(--line); border-radius: var(--r); background: var(--panel); min-width: 200px; }

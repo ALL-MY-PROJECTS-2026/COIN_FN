@@ -34,8 +34,11 @@ export default function App() {
   const [liveOn, setLiveOn] = useState(false) // WS 연결 여부
 
   const elRef = useRef(null)
+  const rsiElRef = useRef(null)
+  const macdElRef = useRef(null)
   const chartRef = useRef(null)
   const sRef = useRef({}) // series refs
+  const subRef = useRef({}) // 서브차트(RSI·MACD)
   const barRef = useRef(null) // 형성 중 마지막 봉 {time,open,high,low,close}
 
   useEffect(() => {
@@ -130,7 +133,35 @@ export default function App() {
     const vwap = chart.addLineSeries({ color: C_VWAP, lineWidth: 1, lineStyle: 2 })
     chartRef.current = chart
     sRef.current = { candle, vol, ema20, ema50, vwap }
-    return () => { chart.remove(); chartRef.current = null; sRef.current = {} }
+
+    // 서브차트: RSI · MACD (메인과 시간축 동기)
+    const mkSub = (el) => createChart(el, {
+      layout: { background: { color: dark ? '#161b22' : '#ffffff' }, textColor: dark ? '#8b949e' : '#666', fontFamily: 'inherit' },
+      grid: { vertLines: { color: dark ? '#222833' : '#eef1f5' }, horzLines: { color: dark ? '#222833' : '#eef1f5' } },
+      rightPriceScale: { borderColor: dark ? '#2a313c' : '#d0d0d0' },
+      timeScale: { borderColor: dark ? '#2a313c' : '#d0d0d0', timeVisible: true },
+      autoSize: true,
+    })
+    const rsiChart = mkSub(rsiElRef.current)
+    const rsiLine = rsiChart.addLineSeries({ color: '#8b5cf6', lineWidth: 1 })
+    rsiLine.createPriceLine({ price: 70, color: UP, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '70' })
+    rsiLine.createPriceLine({ price: 30, color: DOWN, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: '30' })
+    const macdChart = mkSub(macdElRef.current)
+    const macdHist = macdChart.addHistogramSeries({})
+    const macdLine = macdChart.addLineSeries({ color: '#2563eb', lineWidth: 1 })
+    const macdSig = macdChart.addLineSeries({ color: '#e08e0b', lineWidth: 1 })
+    subRef.current = { rsiChart, macdChart, rsiLine, macdHist, macdLine, macdSig }
+
+    const sync = (r) => {
+      if (!r) return
+      try { rsiChart.timeScale().setVisibleLogicalRange(r); macdChart.timeScale().setVisibleLogicalRange(r) } catch { /* noop */ }
+    }
+    chart.timeScale().subscribeVisibleLogicalRangeChange(sync)
+
+    return () => {
+      chart.remove(); rsiChart.remove(); macdChart.remove()
+      chartRef.current = null; sRef.current = {}; subRef.current = {}
+    }
   }, [theme])
 
   // 데이터 → 차트
@@ -147,6 +178,17 @@ export default function App() {
     s.ema20.setData(show.ema20 && indicators ? line(indicators.ema20) : [])
     s.ema50.setData(show.ema50 && indicators ? line(indicators.ema50) : [])
     s.vwap.setData(show.vwap && indicators ? line(indicators.vwap) : [])
+
+    // 서브차트: RSI · MACD
+    const sub = subRef.current
+    if (sub.rsiLine && indicators) {
+      sub.rsiLine.setData(line(indicators.rsi14))
+      sub.macdHist.setData(candles.map((c, i) => ({ time: t(c), value: indicators.macdHist[i], color: indicators.macdHist[i] >= 0 ? UP : DOWN })).filter((p) => p.value != null))
+      sub.macdLine.setData(line(indicators.macd))
+      sub.macdSig.setData(line(indicators.macdSignal))
+      sub.rsiChart.timeScale().fitContent()
+      sub.macdChart.timeScale().fitContent()
+    }
     // 신호 마커
     s.candle.setMarkers(signals.map((m) => ({
       time: Math.floor(m.timestamp / 1000),
@@ -222,6 +264,15 @@ export default function App() {
             {status === 'error' && <div className="overlay err">BN 오류: {err}</div>}
             {status === 'empty' && <div className="overlay">데이터 없음</div>}
             <div ref={elRef} className="chart" />
+          </div>
+
+          <div className="subpane">
+            <div className="sub-h"><span className="dot" style={{ background: '#8b5cf6' }} />RSI(14)</div>
+            <div ref={rsiElRef} className="sub-chart" />
+          </div>
+          <div className="subpane">
+            <div className="sub-h"><span className="dot" style={{ background: '#2563eb' }} />MACD <span className="dot" style={{ background: '#e08e0b' }} />Signal <span className="mut">(12·26·9)</span></div>
+            <div ref={macdElRef} className="sub-chart" />
           </div>
 
           <div className="panels">
