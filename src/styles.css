@@ -100,6 +100,12 @@ body {
 .log-row .lr { color: var(--muted); flex: 1; }
 .log .empty { padding: 14px; color: var(--muted); text-align: center; }
 
+.book { font-size: 12px; }
+.book-row { display: flex; justify-content: space-between; padding: 2px 10px; }
+.book-row .bk-p { font-weight: 600; }
+.book-row .bk-s.ask { color: var(--muted); text-align: right; }
+.book-row .bk-s.bid { color: var(--muted); text-align: right; }
+
 .strat-decide { font-size: 18px; font-weight: 800; padding: 8px 10px; }
 .strat-decide.d-buy { color: var(--buy); }
 .strat-decide.d-sell { color: var(--sell); }

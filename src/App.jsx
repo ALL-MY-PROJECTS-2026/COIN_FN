@@ -25,6 +25,7 @@ export default function App() {
   const [show, setShow] = useState({ ema20: true, ema50: true, vwap: false, bb: false })
   const [strategy, setStrategy] = useState(null)
   const [paper, setPaper] = useState(null)
+  const [book, setBook] = useState(null)
   const [status, setStatus] = useState('loading')
   const [health, setHealth] = useState(null)
   const [data, setData] = useState({ candles: [], indicators: null })
@@ -95,6 +96,15 @@ export default function App() {
   }, [market, unit])
 
   useEffect(() => { load() }, [load])
+
+  // 호가 폴링(선택 마켓, 4초) — 업비트 호가/매수·매도벽
+  useEffect(() => {
+    let alive = true
+    const pull = () => fetch(`${BN_URL}/api/orderbook?market=${market}`).then((r) => r.ok ? r.json() : null).then((j) => alive && setBook(j)).catch(() => {})
+    pull()
+    const id = setInterval(pull, 4000)
+    return () => { alive = false; clearInterval(id) }
+  }, [market])
 
   // 실시간 WebSocket — 형성 중 마지막 봉을 체결가로 갱신
   useEffect(() => {
@@ -352,6 +362,19 @@ export default function App() {
                   <div className="mut" style={{ padding: '4px 10px' }}>RSI {strategy.values.rsi} · ADX {strategy.values.adx} · 거래량 {strategy.values.volRatio}배</div>
                 </div>
               ) : (<div className="empty" style={{ padding: 12 }}>{strategy?.reason ?? '-'}</div>)}
+            </div>
+            <div className="panel">
+              <div className="panel-h">호가 <span className="cnt">업비트</span></div>
+              {book?.units?.length ? (
+                <div className="book">
+                  {book.units.slice(0, 5).reverse().map((u, i) => (
+                    <div key={`a${i}`} className="book-row"><span className="bk-p" style={{ color: UP }}>{fmt(u.ask_price)}</span><span className="bk-s ask">{u.ask_size.toFixed(3)}</span></div>
+                  ))}
+                  {book.units.slice(0, 5).map((u, i) => (
+                    <div key={`b${i}`} className="book-row"><span className="bk-p" style={{ color: DOWN }}>{fmt(u.bid_price)}</span><span className="bk-s bid">{u.bid_size.toFixed(3)}</span></div>
+                  ))}
+                </div>
+              ) : (<div className="empty" style={{ padding: 12 }}>-</div>)}
             </div>
             <div className="panel">
               <div className="panel-h">지표 요약</div>

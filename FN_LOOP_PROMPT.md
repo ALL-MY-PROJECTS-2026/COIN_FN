@@ -3,6 +3,7 @@
 > 용도: **코인 자동매매 웹의 프론트엔드(React·차트/대시보드·UI/UX·반응형)**만 담당하는 루프. BN 루프와 **다른 REPO·다른 세션**에서 동시 실행.
 > 저장소: FN = COIN_FN / BN = COIN_BN (별개 repo). 둘은 **비동기 REST(요청-응답) + WebSocket**으로만 연결.
 > 근거 문서: [UI_GUIDE.md](UI_GUIDE.md)(UI 개선 플레이북·백로그·KRDS/KWCAG).
+> 구현 현황: 캔들+EMA/VWAP/볼린저 오버레이·신호마커·거래량 / RSI·MACD 서브차트(시간축 정렬) / 시장국면·지표요약·백테스트·신호로그·**자동매매 판정**·**페이퍼 계정**·**호가** 패널 / 실시간 WS / 다크토글 / 마켓전환 레이스 수정 완료. BN(COIN_BN) OpenAPI 소비: candles·indicators·signals·backtest·regime·strategy·paper·orderbook·trades·markets. 다음: 스토캐스틱·임계값 설정 UI·최근체결 패널·렌더링 최적화(memo/throttle).
 > 사용법: 아래 코드블록을 통째로 복사 → `/loop 10m <붙여넣기>`.
 > 매 사이클 **작업 상태를 `FN.md`에 보고**하고, **무엇이 업데이트됐는지 `작업완료보고.md`에도 기록**한 뒤 **매 사이클 COIN_FN GitHub에 commit+push**한다.
 
