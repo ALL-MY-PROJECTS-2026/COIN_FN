@@ -83,7 +83,7 @@ export default function App() {
       const q = `market=${market}&unit=${unit}&count=200`
       const [ind, sig, bt, rg, st] = await Promise.all([
         fetch(`${BN_URL}/api/indicators?${q}`).then((r) => { if (!r.ok) throw new Error(`BN ${r.status}`); return r.json() }),
-        fetch(`${BN_URL}/api/signals?${q}`).then((r) => r.ok ? r.json() : { signals: [] }),
+        fetch(`${BN_URL}/api/strategy-signals?${q}`).then((r) => r.ok ? r.json() : { signals: [] }),
         fetch(`${BN_URL}/api/backtest?${q}`).then((r) => r.ok ? r.json() : { backtest: null }),
         fetch(`${BN_URL}/api/regime?${q}`).then((r) => r.ok ? r.json() : null),
         fetch(`${BN_URL}/api/strategy?${q}`).then((r) => r.ok ? r.json() : null),
@@ -398,6 +398,33 @@ export default function App() {
                   <div className="mut" style={{ padding: '4px 10px', borderTop: '1px solid var(--panel2)' }}>RSI {strategy.values.rsi} · ADX {strategy.values.adx} · Stoch {strategy.values.stochK} · 거래량 {strategy.values.volRatio}배</div>
                 </div>
               ) : (<div className="empty" style={{ padding: 12 }}>{strategy?.reason ?? '-'}</div>)}
+            </div>
+            <div className="panel">
+              <div className="panel-h">거래 대시보드 <span className="cnt">{paper?.mode ?? '-'}</span></div>
+              {paper ? (
+                <div>
+                  <table className="kv"><tbody>
+                    <tr><th>실현손익</th><td style={{ color: paper.realizedPnl >= 0 ? UP : DOWN }}>{fmt(paper.realizedPnl)}원</td></tr>
+                    <tr><th>승률</th><td>{paper.winRate != null ? `${paper.winRate}%` : '-'}</td></tr>
+                    <tr><th>총 거래수</th><td>{paper.tradeCount}</td></tr>
+                    <tr><th>총수익률</th><td style={{ color: paper.totalReturnPct >= 0 ? UP : DOWN }}>{paper.totalReturnPct >= 0 ? '+' : ''}{paper.totalReturnPct}%</td></tr>
+                  </tbody></table>
+                  {paper.byMarket?.length > 0 && (
+                    <div className="log" style={{ borderTop: '1px solid var(--panel2)', marginTop: 4 }}>
+                      {paper.byMarket.map((b, i) => (
+                        <div key={i} className="log-row"><span className="lt">{b.market.replace('KRW-', '')}</span><span className="lr">{b.count}거래·{b.wins}승</span><span className="lp" style={{ color: b.pnl >= 0 ? UP : DOWN }}>{fmt(b.pnl)}</span></div>
+                      ))}
+                    </div>
+                  )}
+                  {paper.trades?.length > 0 ? (
+                    <div className="log">
+                      {paper.trades.slice().reverse().slice(0, 6).map((t, i) => (
+                        <div key={i} className="log-row"><span className="lt">{t.market.replace('KRW-', '')}</span><span className="lp" style={{ color: t.pnl >= 0 ? UP : DOWN }}>{t.pnlPct >= 0 ? '+' : ''}{t.pnlPct}%</span><span className="lr">{t.reason}</span></div>
+                      ))}
+                    </div>
+                  ) : (<div className="empty" style={{ padding: 10 }}>거래 없음 (조건 충족 시 자동 체결)</div>)}
+                </div>
+              ) : (<div className="empty" style={{ padding: 12 }}>-</div>)}
             </div>
             <div className="panel">
               <div className="panel-h">최근 체결 <span className="cnt">업비트</span></div>
