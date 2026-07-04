@@ -24,6 +24,7 @@ export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('coin_theme') || 'light')
   const [show, setShow] = useState({ ema20: true, ema50: true, vwap: false, bb: false })
   const [strategy, setStrategy] = useState(null)
+  const [paper, setPaper] = useState(null)
   const [status, setStatus] = useState('loading')
   const [health, setHealth] = useState(null)
   const [data, setData] = useState({ candles: [], indicators: null })
@@ -53,6 +54,15 @@ export default function App() {
     let alive = true
     fetch(`${BN_URL}/health`).then((r) => r.json()).then((j) => alive && setHealth(j)).catch(() => alive && setHealth(null))
     return () => { alive = false }
+  }, [])
+
+  // 페이퍼 계정 폴링(자동매매가 30초마다 갱신 → 20초 폴)
+  useEffect(() => {
+    let alive = true
+    const pull = () => fetch(`${BN_URL}/api/paper`).then((r) => r.ok ? r.json() : null).then((j) => alive && setPaper(j)).catch(() => {})
+    pull()
+    const id = setInterval(pull, 20000)
+    return () => { alive = false; clearInterval(id) }
   }, [])
 
   // 지표+신호 로드 (비동기 병렬, 4상태)
@@ -268,6 +278,19 @@ export default function App() {
               <div className={`rg-label rg-${regime.regime}`}>{regime.label}</div>
               <div className="rg-adx">ADX {regime.adx ?? '-'}</div>
               <div className="rg-rec">{regime.recommend}</div>
+            </div>
+          )}
+          {paper && (
+            <div className="regime-card">
+              <div className="rg-title">페이퍼 계정 <span style={{ color: paper.autotrader?.running ? BUY : 'var(--muted)' }}>{paper.autotrader?.running ? '● 자동' : '○ 정지'}</span></div>
+              <div className="rg-label" style={{ color: paper.totalReturnPct >= 0 ? UP : DOWN, fontSize: 16 }}>
+                {paper.totalReturnPct >= 0 ? '+' : ''}{paper.totalReturnPct}%
+              </div>
+              <div className="rg-adx">평가 {fmt(paper.equity)}원</div>
+              <div className="rg-rec">실현 {fmt(paper.realizedPnl)} · 미실현 {fmt(paper.unrealizedPnl)} · {paper.tradeCount}거래</div>
+              {paper.positions?.length > 0 && (
+                <div className="rg-rec" style={{ marginTop: 4 }}>보유: {paper.positions.map((p) => `${p.market.replace('KRW-', '')} ${p.unrealizedPct}%`).join(', ')}</div>
+              )}
             </div>
           )}
           <div className="side-title">관심종목</div>
