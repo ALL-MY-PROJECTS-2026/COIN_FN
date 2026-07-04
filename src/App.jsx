@@ -106,7 +106,6 @@ export default function App() {
       const candles = ind.candles || []
       if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setBacktest(null); setRegime(null); setStrategy(null); setStatus('empty'); return }
       histRef.current = { candles, ind: ind.indicators, key: `${market}_${unit}` }
-      viewRef.current = null // 새 마켓/분봉 → 초기뷰
       setData({ candles, indicators: ind.indicators })
       setSignals(sig.signals || [])
       setBacktest(bt.backtest || null)
@@ -290,14 +289,28 @@ export default function App() {
       sub.macdLine.setData(ws(indicators.macd))
       sub.macdSig.setData(ws(indicators.macdSignal))
     }
-    // 신호 마커
-    s.candle.setMarkers(signals.map((m) => ({
+    // 마커: 전략 신호(화살표) + 실제 페이퍼 체결(원)
+    const stratMarkers = signals.map((m) => ({
       time: Math.floor(m.timestamp / 1000),
       position: m.type === 'buy' ? 'belowBar' : 'aboveBar',
       color: m.type === 'buy' ? BUY : SELL,
       shape: m.type === 'buy' ? 'arrowUp' : 'arrowDown',
-      text: m.type === 'buy' ? '매수' : '매도',
-    })))
+      text: m.type === 'buy' ? '신호' : '신호',
+    }))
+    const paperMarkers = []
+    if (paper) {
+      for (const t of (paper.trades || [])) {
+        if (t.market !== market) continue
+        if (t.entryTs) paperMarkers.push({ time: Math.floor(t.entryTs / 1000), position: 'belowBar', color: BUY, shape: 'circle', text: '체결매수' })
+        if (t.exitTs) paperMarkers.push({ time: Math.floor(t.exitTs / 1000), position: 'aboveBar', color: SELL, shape: 'circle', text: `체결매도 ${t.pnlPct >= 0 ? '+' : ''}${t.pnlPct}%` })
+      }
+      for (const p of (paper.positions || [])) {
+        if (p.market !== market || !p.entryTs) continue
+        paperMarkers.push({ time: Math.floor(p.entryTs / 1000), position: 'belowBar', color: BUY, shape: 'circle', text: '체결매수(보유중)' })
+      }
+    }
+    const allMarkers = [...stratMarkers, ...paperMarkers].sort((a, b) => a.time - b.time)
+    s.candle.setMarkers(allMarkers)
     // 마켓/분봉 바뀔 때만 전체 히스토리 맞춤(fit). 갱신 시엔 setData가 표시범위 자동 유지
     const fitKey = `${market}_${unit}`
     if (fitKeyRef.current !== fitKey) {
@@ -306,7 +319,7 @@ export default function App() {
       subRef.current.macdChart?.timeScale().fitContent()
       fitKeyRef.current = fitKey
     }
-  }, [data, signals, show, market, unit])
+  }, [data, signals, show, market, unit, paper])
 
   const candles = data.candles
   const ind = data.indicators
