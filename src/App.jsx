@@ -438,13 +438,18 @@ export default function App() {
                 <div>
                   {paper.live && <div className="strat-decide d-sell" style={{ fontSize: 13, padding: '4px 10px' }}>⚠️ 실거래(live) — 실제 자금</div>}
                   <table className="kv"><tbody>
-                    <tr><th>{paper.live ? '보유현금' : '평가금액'}</th><td>{fmt(paper.equity)}원</td></tr>
+                    <tr><th>평가금액</th><td>{fmt(paper.equity)}원</td></tr>
+                    {paper.live && <tr><th>보유현금</th><td>{fmt(paper.krw)}원</td></tr>}
                     {paper.totalReturnPct != null && <tr><th>총수익률</th><td style={{ color: paper.totalReturnPct >= 0 ? UP : DOWN }}>{paper.totalReturnPct >= 0 ? '+' : ''}{paper.totalReturnPct}%</td></tr>}
-                    <tr><th>실현손익</th><td style={{ color: paper.realizedPnl >= 0 ? UP : DOWN }}>{fmt(paper.realizedPnl)}원</td></tr>
+                    {(() => { const tot = (paper.realizedPnl || 0) + (paper.unrealizedPnl || 0); return (
+                      <tr><th>총손익</th><td style={{ color: tot >= 0 ? UP : DOWN, fontWeight: 800 }}>{tot >= 0 ? '+' : ''}{fmt(tot)}원</td></tr>
+                    ); })()}
+                    <tr><th>실현손익 <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(청산완료)</span></th><td style={{ color: paper.realizedPnl > 0 ? UP : paper.realizedPnl < 0 ? DOWN : 'inherit' }}>{fmt(paper.realizedPnl)}원</td></tr>
+                    <tr><th>미실현손익 <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(보유중)</span></th><td style={{ color: paper.unrealizedPnl > 0 ? UP : paper.unrealizedPnl < 0 ? DOWN : 'inherit' }}>{paper.unrealizedPnl > 0 ? '+' : ''}{fmt(paper.unrealizedPnl)}원</td></tr>
                     <tr><th>승률 · 거래수</th><td>{paper.winRate != null ? `${paper.winRate}% (${paper.byMarket?.reduce((s, b) => s + b.wins, 0) ?? 0}승 ${paper.tradeCount - (paper.byMarket?.reduce((s, b) => s + b.wins, 0) ?? 0)}패)` : '청산 전'} · {paper.tradeCount}건</td></tr>
                   </tbody></table>
                   {paper.equityHist?.length > 1 && (() => {
-                    const h = paper.equityHist, W = 240, H = 44, base = 1000000;
+                    const h = paper.equityHist, W = 240, H = 44, base = paper.initialKrw ?? h[0]?.equity ?? paper.equity;
                     const ys = h.map(p => p.equity), lo = Math.min(base, ...ys), hi = Math.max(base, ...ys), rng = hi - lo || 1;
                     const x = i => (i / (h.length - 1)) * W, y = v => H - ((v - lo) / rng) * H;
                     const d = h.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p.equity).toFixed(1)}`).join(' ');
