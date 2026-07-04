@@ -445,7 +445,7 @@ export default function App() {
                     <tr><th>평가금액</th><td>{fmt(paper.equity)}원</td></tr>
                     <tr><th>총수익률</th><td style={{ color: paper.totalReturnPct >= 0 ? UP : DOWN }}>{paper.totalReturnPct >= 0 ? '+' : ''}{paper.totalReturnPct}%</td></tr>
                     <tr><th>실현손익</th><td style={{ color: paper.realizedPnl >= 0 ? UP : DOWN }}>{fmt(paper.realizedPnl)}원</td></tr>
-                    <tr><th>승률 · 거래수</th><td>{paper.winRate != null ? `${paper.winRate}%` : '-'} · {paper.tradeCount}건</td></tr>
+                    <tr><th>승률 · 거래수</th><td>{paper.winRate != null ? `${paper.winRate}% (${paper.byMarket?.reduce((s, b) => s + b.wins, 0) ?? 0}승 ${paper.tradeCount - (paper.byMarket?.reduce((s, b) => s + b.wins, 0) ?? 0)}패)` : '청산 전'} · {paper.tradeCount}건</td></tr>
                   </tbody></table>
                   <div className="panel-sub">현재 보유 (뭘 샀나)</div>
                   {paper.positions?.length > 0 ? (
