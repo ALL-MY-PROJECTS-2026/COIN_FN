@@ -51,6 +51,7 @@ export default function App() {
   const subRef = useRef({}) // 서브차트(RSI·MACD)
   const barRef = useRef(null) // 형성 중 마지막 봉 {time,open,high,low,close}
   const reqRef = useRef(0) // 최신 로드 요청 id(마켓 전환 레이스 방지)
+  const fitKeyRef = useRef('') // fitContent는 마켓/분봉 변경 시에만(주기갱신 시 줌 유지)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -150,6 +151,22 @@ export default function App() {
       try { cs.update(next) } catch { /* 차트 재생성 타이밍 무시 */ }
     }
     return () => { closed = true; try { ws && ws.close() } catch { /* noop */ } }
+  }, [market, unit])
+
+  // 주기적 지표 갱신(8초) — EMA/VWAP/RSI/MACD가 형성 중 캔들과 함께 움직이게(줌은 유지)
+  useEffect(() => {
+    let alive = true
+    const my = reqRef.current
+    const tick = async () => {
+      try {
+        const ind = await fetch(`${BN_URL}/api/indicators?market=${market}&unit=${unit}&count=200`).then((r) => (r.ok ? r.json() : null))
+        if (!alive || !ind || reqRef.current !== my) return
+        const candles = ind.candles || []
+        if (candles.length) setData({ candles, indicators: ind.indicators })
+      } catch { /* noop */ }
+    }
+    const id = setInterval(tick, 8000)
+    return () => { alive = false; clearInterval(id) }
   }, [market, unit])
 
   // 차트 생성 (테마 변경 시 재생성)
@@ -252,8 +269,6 @@ export default function App() {
       sub.macdHist.setData(wsHist(indicators.macdHist))
       sub.macdLine.setData(ws(indicators.macd))
       sub.macdSig.setData(ws(indicators.macdSignal))
-      sub.rsiChart.timeScale().fitContent()
-      sub.macdChart.timeScale().fitContent()
     }
     // 신호 마커
     s.candle.setMarkers(signals.map((m) => ({
@@ -263,8 +278,16 @@ export default function App() {
       shape: m.type === 'buy' ? 'arrowUp' : 'arrowDown',
       text: m.type === 'buy' ? '매수' : '매도',
     })))
-    chartRef.current?.timeScale().fitContent()
-  }, [data, signals, show])
+    // fitContent는 마켓/분봉 바뀔 때만(주기 갱신 땐 줌·스크롤 유지)
+    const fitKey = `${market}_${unit}`
+    if (fitKeyRef.current !== fitKey) {
+      chartRef.current?.timeScale().fitContent()
+      const sb = subRef.current
+      sb.rsiChart?.timeScale().fitContent()
+      sb.macdChart?.timeScale().fitContent()
+      fitKeyRef.current = fitKey
+    }
+  }, [data, signals, show, market, unit])
 
   const candles = data.candles
   const ind = data.indicators
