@@ -26,6 +26,7 @@ export default function App() {
   const [strategy, setStrategy] = useState(null)
   const [paper, setPaper] = useState(null)
   const [book, setBook] = useState(null)
+  const [trades, setTrades] = useState([])
   const [status, setStatus] = useState('loading')
   const [health, setHealth] = useState(null)
   const [data, setData] = useState({ candles: [], indicators: null })
@@ -100,7 +101,10 @@ export default function App() {
   // 호가 폴링(선택 마켓, 4초) — 업비트 호가/매수·매도벽
   useEffect(() => {
     let alive = true
-    const pull = () => fetch(`${BN_URL}/api/orderbook?market=${market}`).then((r) => r.ok ? r.json() : null).then((j) => alive && setBook(j)).catch(() => {})
+    const pull = () => {
+      fetch(`${BN_URL}/api/orderbook?market=${market}`).then((r) => r.ok ? r.json() : null).then((j) => alive && setBook(j)).catch(() => {})
+      fetch(`${BN_URL}/api/trades?market=${market}&count=15`).then((r) => r.ok ? r.json() : null).then((j) => alive && setTrades(j?.trades || [])).catch(() => {})
+    }
     pull()
     const id = setInterval(pull, 4000)
     return () => { alive = false; clearInterval(id) }
@@ -364,6 +368,19 @@ export default function App() {
               ) : (<div className="empty" style={{ padding: 12 }}>{strategy?.reason ?? '-'}</div>)}
             </div>
             <div className="panel">
+              <div className="panel-h">최근 체결 <span className="cnt">업비트</span></div>
+              <div className="log" style={{ maxHeight: 160 }}>
+                {trades.length === 0 && <div className="empty">-</div>}
+                {trades.map((t, i) => (
+                  <div key={i} className="log-row">
+                    <span className="lt">{(t.time || '').slice(0, 8)}</span>
+                    <span className="lp" style={{ color: t.side === 'bid' ? UP : DOWN }}>{fmt(t.price)}</span>
+                    <span className="lr" style={{ textAlign: 'right' }}>{Number(t.volume).toFixed(4)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="panel">
               <div className="panel-h">호가 <span className="cnt">업비트</span></div>
               {book?.units?.length ? (
                 <div className="book">
@@ -381,6 +398,7 @@ export default function App() {
               <table className="kv"><tbody>
                 <tr><th>RSI(14)</th><td>{rsi ?? '-'}</td></tr>
                 <tr><th>ADX(14)</th><td>{ind?.adx14?.filter((v) => v != null).slice(-1)[0] ?? '-'}</td></tr>
+                <tr><th>스토캐스틱 %K/%D</th><td>{ind?.stochK?.filter((v) => v != null).slice(-1)[0] ?? '-'} / {ind?.stochD?.filter((v) => v != null).slice(-1)[0] ?? '-'}</td></tr>
                 <tr><th>EMA20</th><td>{fmt(ind?.ema20?.slice(-1)[0])}</td></tr>
                 <tr><th>EMA50</th><td>{fmt(ind?.ema50?.slice(-1)[0])}</td></tr>
                 <tr><th>VWAP</th><td>{fmt(ind?.vwap?.slice(-1)[0])}</td></tr>
