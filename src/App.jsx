@@ -527,7 +527,7 @@ export default function App() {
         </main>
       </div>
 
-      <footer className="foot">데이터: 업비트(BN 경유) · 신호는 교육용 평균회귀(수익 보장 아님) · paper · BN {BN_URL.replace('https://', '')}</footer>
+      <footer className="foot">데이터: 업비트 · 신호는 교육용 평균회귀(수익 보장 아님)</footer>
     </div>
   )
 }
