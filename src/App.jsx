@@ -28,6 +28,7 @@ export default function App() {
   const [data, setData] = useState({ candles: [], indicators: null })
   const [signals, setSignals] = useState([])
   const [backtest, setBacktest] = useState(null)
+  const [regime, setRegime] = useState(null)
   const [err, setErr] = useState('')
   const [live, setLive] = useState(null)      // {price} 실시간 체결가
   const [liveOn, setLiveOn] = useState(false) // WS 연결 여부
@@ -54,16 +55,18 @@ export default function App() {
     setStatus('loading'); setErr('')
     try {
       const q = `market=${market}&unit=${unit}&count=200`
-      const [ind, sig, bt] = await Promise.all([
+      const [ind, sig, bt, rg] = await Promise.all([
         fetch(`${BN_URL}/api/indicators?${q}`).then((r) => { if (!r.ok) throw new Error(`BN ${r.status}`); return r.json() }),
         fetch(`${BN_URL}/api/signals?${q}`).then((r) => r.ok ? r.json() : { signals: [] }),
         fetch(`${BN_URL}/api/backtest?${q}`).then((r) => r.ok ? r.json() : { backtest: null }),
+        fetch(`${BN_URL}/api/regime?${q}`).then((r) => r.ok ? r.json() : null),
       ])
       const candles = ind.candles || []
-      if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setBacktest(null); setStatus('empty'); return }
+      if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setBacktest(null); setRegime(null); setStatus('empty'); return }
       setData({ candles, indicators: ind.indicators })
       setSignals(sig.signals || [])
       setBacktest(bt.backtest || null)
+      setRegime(rg)
       setStatus('ok')
     } catch (e) {
       setErr(String(e.message || e)); setStatus('error')
@@ -180,6 +183,14 @@ export default function App() {
 
       <div className="layout">
         <aside className="sidebar">
+          {regime && (
+            <div className="regime-card">
+              <div className="rg-title">시장국면</div>
+              <div className={`rg-label rg-${regime.regime}`}>{regime.label}</div>
+              <div className="rg-adx">ADX {regime.adx ?? '-'}</div>
+              <div className="rg-rec">{regime.recommend}</div>
+            </div>
+          )}
           <div className="side-title">관심종목</div>
           <ul className="watchlist">
             {MARKETS.map((m) => (
@@ -218,6 +229,7 @@ export default function App() {
               <div className="panel-h">지표 요약</div>
               <table className="kv"><tbody>
                 <tr><th>RSI(14)</th><td>{rsi ?? '-'}</td></tr>
+                <tr><th>ADX(14)</th><td>{ind?.adx14?.filter((v) => v != null).slice(-1)[0] ?? '-'}</td></tr>
                 <tr><th>EMA20</th><td>{fmt(ind?.ema20?.slice(-1)[0])}</td></tr>
                 <tr><th>EMA50</th><td>{fmt(ind?.ema50?.slice(-1)[0])}</td></tr>
                 <tr><th>VWAP</th><td>{fmt(ind?.vwap?.slice(-1)[0])}</td></tr>

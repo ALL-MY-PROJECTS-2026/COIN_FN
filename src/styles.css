@@ -43,6 +43,15 @@ body {
 .tg { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
 .tg .dot { width: 10px; height: 2px; display: inline-block; }
 
+.regime-card { border: 1px solid var(--line); border-radius: var(--r); padding: 10px; margin-bottom: 12px; background: var(--panel2); }
+.rg-title { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .3px; }
+.rg-label { font-size: 18px; font-weight: 800; margin: 4px 0; }
+.rg-label.rg-trend { color: var(--up); }
+.rg-label.rg-range { color: var(--down); }
+.rg-label.rg-neutral { color: var(--muted); }
+.rg-adx { font-size: 13px; font-weight: 700; }
+.rg-rec { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 /* 가격바 */
