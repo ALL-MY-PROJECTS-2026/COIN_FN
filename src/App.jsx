@@ -447,6 +447,22 @@ export default function App() {
                     <tr><th>실현손익</th><td style={{ color: paper.realizedPnl >= 0 ? UP : DOWN }}>{fmt(paper.realizedPnl)}원</td></tr>
                     <tr><th>승률 · 거래수</th><td>{paper.winRate != null ? `${paper.winRate}% (${paper.byMarket?.reduce((s, b) => s + b.wins, 0) ?? 0}승 ${paper.tradeCount - (paper.byMarket?.reduce((s, b) => s + b.wins, 0) ?? 0)}패)` : '청산 전'} · {paper.tradeCount}건</td></tr>
                   </tbody></table>
+                  {paper.equityHist?.length > 1 && (() => {
+                    const h = paper.equityHist, W = 240, H = 44, base = 1000000;
+                    const ys = h.map(p => p.equity), lo = Math.min(base, ...ys), hi = Math.max(base, ...ys), rng = hi - lo || 1;
+                    const x = i => (i / (h.length - 1)) * W, y = v => H - ((v - lo) / rng) * H;
+                    const d = h.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(p.equity).toFixed(1)}`).join(' ');
+                    const last = ys[ys.length - 1], up = last >= base;
+                    return (
+                      <div style={{ padding: '4px 10px 8px' }}>
+                        <div className="panel-sub" style={{ padding: '2px 0', border: 0 }}>자산 추이 ({h.length}포인트 · 5분)</div>
+                        <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', height: 44 }}>
+                          <line x1="0" y1={y(base)} x2={W} y2={y(base)} stroke="var(--line)" strokeWidth="1" strokeDasharray="3 3" />
+                          <path d={d} fill="none" stroke={up ? UP : DOWN} strokeWidth="1.5" />
+                        </svg>
+                      </div>
+                    );
+                  })()}
                   <div className="panel-sub">현재 보유 (뭘 샀나)</div>
                   {paper.positions?.length > 0 ? (
                     <div className="log">
