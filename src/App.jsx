@@ -27,6 +27,7 @@ export default function App() {
   const [health, setHealth] = useState(null)
   const [data, setData] = useState({ candles: [], indicators: null })
   const [signals, setSignals] = useState([])
+  const [backtest, setBacktest] = useState(null)
   const [err, setErr] = useState('')
 
   const elRef = useRef(null)
@@ -50,14 +51,16 @@ export default function App() {
     setStatus('loading'); setErr('')
     try {
       const q = `market=${market}&unit=${unit}&count=200`
-      const [ind, sig] = await Promise.all([
+      const [ind, sig, bt] = await Promise.all([
         fetch(`${BN_URL}/api/indicators?${q}`).then((r) => { if (!r.ok) throw new Error(`BN ${r.status}`); return r.json() }),
         fetch(`${BN_URL}/api/signals?${q}`).then((r) => r.ok ? r.json() : { signals: [] }),
+        fetch(`${BN_URL}/api/backtest?${q}`).then((r) => r.ok ? r.json() : { backtest: null }),
       ])
       const candles = ind.candles || []
-      if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setStatus('empty'); return }
+      if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setBacktest(null); setStatus('empty'); return }
       setData({ candles, indicators: ind.indicators })
       setSignals(sig.signals || [])
+      setBacktest(bt.backtest || null)
       setStatus('ok')
     } catch (e) {
       setErr(String(e.message || e)); setStatus('error')
@@ -176,6 +179,20 @@ export default function App() {
                 <tr><th>EMA50</th><td>{fmt(ind?.ema50?.slice(-1)[0])}</td></tr>
                 <tr><th>VWAP</th><td>{fmt(ind?.vwap?.slice(-1)[0])}</td></tr>
               </tbody></table>
+            </div>
+            <div className="panel">
+              <div className="panel-h">백테스트 <span className="cnt">비용차감</span></div>
+              {backtest && backtest.trades > 0 ? (
+                <table className="kv"><tbody>
+                  <tr><th>거래수</th><td>{backtest.trades}</td></tr>
+                  <tr><th>승률</th><td>{backtest.winRatePct}%</td></tr>
+                  <tr><th>총수익</th><td style={{ color: backtest.totalReturnPct >= 0 ? UP : DOWN }}>{backtest.totalReturnPct >= 0 ? '+' : ''}{backtest.totalReturnPct}%</td></tr>
+                  <tr><th>손익비(PF)</th><td>{backtest.profitFactor ?? '-'}</td></tr>
+                  <tr><th>MDD</th><td style={{ color: DOWN }}>{backtest.maxDrawdownPct}%</td></tr>
+                </tbody></table>
+              ) : (
+                <div className="empty" style={{ padding: 14 }}>{backtest ? `왕복거래 없음 (신호 매수/${backtest.buySignals} 매도/${backtest.sellSignals})` : '-'}</div>
+              )}
             </div>
             <div className="panel grow">
               <div className="panel-h">신호 로그 <span className="cnt">{signals.length}</span></div>
