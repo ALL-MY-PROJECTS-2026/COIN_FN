@@ -22,7 +22,8 @@ export default function App() {
   const [market, setMarket] = useState('KRW-BTC')
   const [unit, setUnit] = useState(5)
   const [theme, setTheme] = useState(() => localStorage.getItem('coin_theme') || 'light')
-  const [show, setShow] = useState({ ema20: true, ema50: true, vwap: false })
+  const [show, setShow] = useState({ ema20: true, ema50: true, vwap: false, bb: false })
+  const [strategy, setStrategy] = useState(null)
   const [status, setStatus] = useState('loading')
   const [health, setHealth] = useState(null)
   const [data, setData] = useState({ candles: [], indicators: null })
@@ -61,19 +62,21 @@ export default function App() {
     setStatus('loading'); setErr('')
     try {
       const q = `market=${market}&unit=${unit}&count=200`
-      const [ind, sig, bt, rg] = await Promise.all([
+      const [ind, sig, bt, rg, st] = await Promise.all([
         fetch(`${BN_URL}/api/indicators?${q}`).then((r) => { if (!r.ok) throw new Error(`BN ${r.status}`); return r.json() }),
         fetch(`${BN_URL}/api/signals?${q}`).then((r) => r.ok ? r.json() : { signals: [] }),
         fetch(`${BN_URL}/api/backtest?${q}`).then((r) => r.ok ? r.json() : { backtest: null }),
         fetch(`${BN_URL}/api/regime?${q}`).then((r) => r.ok ? r.json() : null),
+        fetch(`${BN_URL}/api/strategy?${q}`).then((r) => r.ok ? r.json() : null),
       ])
       if (reqRef.current !== myReq) return  // 뒤늦게 온 이전 마켓 응답 무시(레이스 방지)
       const candles = ind.candles || []
-      if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setBacktest(null); setRegime(null); setStatus('empty'); return }
+      if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setBacktest(null); setRegime(null); setStrategy(null); setStatus('empty'); return }
       setData({ candles, indicators: ind.indicators })
       setSignals(sig.signals || [])
       setBacktest(bt.backtest || null)
       setRegime(rg)
+      setStrategy(st)
       setStatus('ok')
     } catch (e) {
       if (reqRef.current !== myReq) return
@@ -136,8 +139,11 @@ export default function App() {
     const ema20 = chart.addLineSeries({ color: C_EMA20, lineWidth: 1 })
     const ema50 = chart.addLineSeries({ color: C_EMA50, lineWidth: 1 })
     const vwap = chart.addLineSeries({ color: C_VWAP, lineWidth: 1, lineStyle: 2 })
+    const bbU = chart.addLineSeries({ color: '#9aa4b2', lineWidth: 1 })
+    const bbM = chart.addLineSeries({ color: '#9aa4b2', lineWidth: 1, lineStyle: 2 })
+    const bbL = chart.addLineSeries({ color: '#9aa4b2', lineWidth: 1 })
     chartRef.current = chart
-    sRef.current = { candle, vol, ema20, ema50, vwap }
+    sRef.current = { candle, vol, ema20, ema50, vwap, bbU, bbM, bbL }
 
     // 서브차트: RSI · MACD (메인과 시간축 동기)
     const mkSub = (el) => createChart(el, {
@@ -201,6 +207,9 @@ export default function App() {
     s.ema20.setData(show.ema20 && indicators ? line(indicators.ema20) : [])
     s.ema50.setData(show.ema50 && indicators ? line(indicators.ema50) : [])
     s.vwap.setData(show.vwap && indicators ? line(indicators.vwap) : [])
+    s.bbU.setData(show.bb && indicators ? line(indicators.bbUpper) : [])
+    s.bbM.setData(show.bb && indicators ? line(indicators.bbMid) : [])
+    s.bbL.setData(show.bb && indicators ? line(indicators.bbLower) : [])
 
     // 서브차트: RSI · MACD
     // ★ 전체 캔들 시간대를 whitespace(값 없는 시간점)로 채워 시간축을 메인과 동일하게 →
@@ -269,7 +278,7 @@ export default function App() {
           </ul>
           <div className="side-title">지표</div>
           <div className="toggles">
-            {[['ema20', 'EMA20', C_EMA20], ['ema50', 'EMA50', C_EMA50], ['vwap', 'VWAP', C_VWAP]].map(([k, label, c]) => (
+            {[['ema20', 'EMA20', C_EMA20], ['ema50', 'EMA50', C_EMA50], ['vwap', 'VWAP', C_VWAP], ['bb', '볼린저밴드', '#9aa4b2']].map(([k, label, c]) => (
               <label key={k} className="tg"><input type="checkbox" checked={show[k]} onChange={() => setShow((s) => ({ ...s, [k]: !s[k] }))} /><span className="dot" style={{ background: c }} />{label}</label>
             ))}
           </div>
@@ -304,6 +313,23 @@ export default function App() {
           </div>
 
           <div className="panels">
+            <div className="panel">
+              <div className="panel-h">자동매매 판정 <span className="cnt">{strategy?.mode ?? '-'}</span></div>
+              {strategy?.ready ? (
+                <div className="strat">
+                  <div className={`strat-decide d-${strategy.decision}`}>
+                    {strategy.decision === 'buy' ? '▲ 매수' : strategy.decision === 'sell' ? '▼ 매도' : '― 보류'}
+                  </div>
+                  <table className="kv"><tbody>
+                    <tr><th>RSI 과매도 재돌파</th><td>{strategy.entry.rsiOversoldCross ? '✓' : '·'}</td></tr>
+                    <tr><th>MACD 골든</th><td>{strategy.entry.macdBull ? '✓' : '·'}</td></tr>
+                    <tr><th>ADX≥{strategy.thresholds.adxMin}</th><td>{strategy.entry.adxTrend ? '✓' : '·'}</td></tr>
+                    <tr><th>거래량 {strategy.thresholds.volMult}배</th><td>{strategy.entry.volConfirm ? '✓' : '·'}</td></tr>
+                  </tbody></table>
+                  <div className="mut" style={{ padding: '4px 10px' }}>RSI {strategy.values.rsi} · ADX {strategy.values.adx} · 거래량 {strategy.values.volRatio}배</div>
+                </div>
+              ) : (<div className="empty" style={{ padding: 12 }}>{strategy?.reason ?? '-'}</div>)}
+            </div>
             <div className="panel">
               <div className="panel-h">지표 요약</div>
               <table className="kv"><tbody>
