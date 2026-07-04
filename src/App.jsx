@@ -436,9 +436,10 @@ export default function App() {
               <div className="panel-h">거래 대시보드 <span className="cnt">{paper?.mode ?? '-'}</span></div>
               {paper ? (
                 <div>
+                  {paper.live && <div className="strat-decide d-sell" style={{ fontSize: 13, padding: '4px 10px' }}>⚠️ 실거래(live) — 실제 자금</div>}
                   <table className="kv"><tbody>
-                    <tr><th>평가금액</th><td>{fmt(paper.equity)}원</td></tr>
-                    <tr><th>총수익률</th><td style={{ color: paper.totalReturnPct >= 0 ? UP : DOWN }}>{paper.totalReturnPct >= 0 ? '+' : ''}{paper.totalReturnPct}%</td></tr>
+                    <tr><th>{paper.live ? '보유현금' : '평가금액'}</th><td>{fmt(paper.equity)}원</td></tr>
+                    {paper.totalReturnPct != null && <tr><th>총수익률</th><td style={{ color: paper.totalReturnPct >= 0 ? UP : DOWN }}>{paper.totalReturnPct >= 0 ? '+' : ''}{paper.totalReturnPct}%</td></tr>}
                     <tr><th>실현손익</th><td style={{ color: paper.realizedPnl >= 0 ? UP : DOWN }}>{fmt(paper.realizedPnl)}원</td></tr>
                     <tr><th>승률 · 거래수</th><td>{paper.winRate != null ? `${paper.winRate}% (${paper.byMarket?.reduce((s, b) => s + b.wins, 0) ?? 0}승 ${paper.tradeCount - (paper.byMarket?.reduce((s, b) => s + b.wins, 0) ?? 0)}패)` : '청산 전'} · {paper.tradeCount}건</td></tr>
                   </tbody></table>
