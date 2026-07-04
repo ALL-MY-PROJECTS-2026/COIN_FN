@@ -40,6 +40,7 @@ export default function App() {
   const sRef = useRef({}) // series refs
   const subRef = useRef({}) // 서브차트(RSI·MACD)
   const barRef = useRef(null) // 형성 중 마지막 봉 {time,open,high,low,close}
+  const reqRef = useRef(0) // 최신 로드 요청 id(마켓 전환 레이스 방지)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -55,6 +56,8 @@ export default function App() {
 
   // 지표+신호 로드 (비동기 병렬, 4상태)
   const load = useCallback(async () => {
+    const myReq = ++reqRef.current       // 이번 요청 id
+    barRef.current = null                // 새 데이터 도착 전까지 WS 실시간 갱신 보류(교차오염 방지)
     setStatus('loading'); setErr('')
     try {
       const q = `market=${market}&unit=${unit}&count=200`
@@ -64,6 +67,7 @@ export default function App() {
         fetch(`${BN_URL}/api/backtest?${q}`).then((r) => r.ok ? r.json() : { backtest: null }),
         fetch(`${BN_URL}/api/regime?${q}`).then((r) => r.ok ? r.json() : null),
       ])
+      if (reqRef.current !== myReq) return  // 뒤늦게 온 이전 마켓 응답 무시(레이스 방지)
       const candles = ind.candles || []
       if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setBacktest(null); setRegime(null); setStatus('empty'); return }
       setData({ candles, indicators: ind.indicators })
@@ -72,6 +76,7 @@ export default function App() {
       setRegime(rg)
       setStatus('ok')
     } catch (e) {
+      if (reqRef.current !== myReq) return
       setErr(String(e.message || e)); setStatus('error')
     }
   }, [market, unit])
@@ -226,7 +231,8 @@ export default function App() {
   const ind = data.indicators
   const last = candles[candles.length - 1]
   const prev = candles[candles.length - 2]
-  const curPrice = live?.price ?? last?.close   // 실시간 체결가 우선
+  // 로딩 중(마켓 전환 직후)엔 실시간가 미사용 — 이전 마켓 캔들과 섞여 튀는 것 방지
+  const curPrice = (status === 'ok' && live?.price != null) ? live.price : last?.close
   const chg = curPrice != null && prev ? curPrice - prev.close : 0
   const chgPct = curPrice != null && prev ? (chg / prev.close) * 100 : 0
   const up = chg >= 0
