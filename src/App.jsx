@@ -423,11 +423,23 @@ export default function App() {
               {paper ? (
                 <div>
                   <table className="kv"><tbody>
-                    <tr><th>실현손익</th><td style={{ color: paper.realizedPnl >= 0 ? UP : DOWN }}>{fmt(paper.realizedPnl)}원</td></tr>
-                    <tr><th>승률</th><td>{paper.winRate != null ? `${paper.winRate}%` : '-'}</td></tr>
-                    <tr><th>총 거래수</th><td>{paper.tradeCount}</td></tr>
+                    <tr><th>평가금액</th><td>{fmt(paper.equity)}원</td></tr>
                     <tr><th>총수익률</th><td style={{ color: paper.totalReturnPct >= 0 ? UP : DOWN }}>{paper.totalReturnPct >= 0 ? '+' : ''}{paper.totalReturnPct}%</td></tr>
+                    <tr><th>실현손익</th><td style={{ color: paper.realizedPnl >= 0 ? UP : DOWN }}>{fmt(paper.realizedPnl)}원</td></tr>
+                    <tr><th>승률 · 거래수</th><td>{paper.winRate != null ? `${paper.winRate}%` : '-'} · {paper.tradeCount}건</td></tr>
                   </tbody></table>
+                  <div className="panel-sub">현재 보유 (뭘 샀나)</div>
+                  {paper.positions?.length > 0 ? (
+                    <div className="log">
+                      {paper.positions.map((p, i) => (
+                        <div key={i} className="log-row">
+                          <span className="lt">{p.market.replace('KRW-', '')}</span>
+                          <span className="lr">진입 {fmt(p.entry)}</span>
+                          <span className="lp" style={{ color: p.unrealizedPct >= 0 ? UP : DOWN }}>{p.unrealizedPct >= 0 ? '+' : ''}{p.unrealizedPct}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (<div className="empty" style={{ padding: 8 }}>보유 없음</div>)}
                   {paper.byMarket?.length > 0 && (
                     <div className="log" style={{ borderTop: '1px solid var(--panel2)', marginTop: 4 }}>
                       {paper.byMarket.map((b, i) => (

@@ -105,6 +105,8 @@ body {
 .book-row .bk-s.ask { color: var(--muted); text-align: right; }
 .book-row .bk-s.bid { color: var(--muted); text-align: right; }
 
+.panel-sub { font-size: 11px; color: var(--muted); font-weight: 700; padding: 6px 10px 2px; border-top: 1px solid var(--panel2); }
+
 .strat-decide { font-size: 18px; font-weight: 800; padding: 8px 10px; }
 .strat-decide.d-buy { color: var(--buy); }
 .strat-decide.d-sell { color: var(--sell); }
