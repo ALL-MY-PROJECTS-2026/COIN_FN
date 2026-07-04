@@ -144,13 +144,15 @@ export default function App() {
     ws.onopen = () => !closed && setLiveOn(true)
     ws.onclose = () => !closed && setLiveOn(false)
     ws.onerror = () => !closed && setLiveOn(false)
+    let lastLive = 0
     ws.onmessage = (ev) => {
       if (closed) return
       let m
       try { m = JSON.parse(ev.data) } catch { return }
       const price = m.price
       if (price == null) return
-      setLive({ price })
+      const now = (m.ts ?? 0) || performance.now()
+      if (now - lastLive > 500) { lastLive = now; setLive({ price }) } // React 리렌더 스로틀
       const cs = sRef.current.candle
       const bar = barRef.current
       if (!cs || !bar) return
@@ -289,28 +291,6 @@ export default function App() {
       sub.macdLine.setData(ws(indicators.macd))
       sub.macdSig.setData(ws(indicators.macdSignal))
     }
-    // 마커: 전략 신호(화살표) + 실제 페이퍼 체결(원)
-    const stratMarkers = signals.map((m) => ({
-      time: Math.floor(m.timestamp / 1000),
-      position: m.type === 'buy' ? 'belowBar' : 'aboveBar',
-      color: m.type === 'buy' ? BUY : SELL,
-      shape: m.type === 'buy' ? 'arrowUp' : 'arrowDown',
-      text: m.type === 'buy' ? '신호' : '신호',
-    }))
-    const paperMarkers = []
-    if (paper) {
-      for (const t of (paper.trades || [])) {
-        if (t.market !== market) continue
-        if (t.entryTs) paperMarkers.push({ time: Math.floor(t.entryTs / 1000), position: 'belowBar', color: BUY, shape: 'circle', text: '체결매수' })
-        if (t.exitTs) paperMarkers.push({ time: Math.floor(t.exitTs / 1000), position: 'aboveBar', color: SELL, shape: 'circle', text: `체결매도 ${t.pnlPct >= 0 ? '+' : ''}${t.pnlPct}%` })
-      }
-      for (const p of (paper.positions || [])) {
-        if (p.market !== market || !p.entryTs) continue
-        paperMarkers.push({ time: Math.floor(p.entryTs / 1000), position: 'belowBar', color: BUY, shape: 'circle', text: '체결매수(보유중)' })
-      }
-    }
-    const allMarkers = [...stratMarkers, ...paperMarkers].sort((a, b) => a.time - b.time)
-    s.candle.setMarkers(allMarkers)
     // 마켓/분봉 바뀔 때만 전체 히스토리 맞춤(fit). 갱신 시엔 setData가 표시범위 자동 유지
     const fitKey = `${market}_${unit}`
     if (fitKeyRef.current !== fitKey) {
@@ -319,7 +299,33 @@ export default function App() {
       subRef.current.macdChart?.timeScale().fitContent()
       fitKeyRef.current = fitKey
     }
-  }, [data, signals, show, market, unit, paper])
+  }, [data, show, market, unit])
+
+  // 마커 전용 효과(신호·페이퍼 체결) — 무거운 전체 redraw 없이 setMarkers만(렌더 최적화)
+  useEffect(() => {
+    const s = sRef.current
+    if (!s.candle) return
+    const strat = signals.map((m) => ({
+      time: Math.floor(m.timestamp / 1000),
+      position: m.type === 'buy' ? 'belowBar' : 'aboveBar',
+      color: m.type === 'buy' ? BUY : SELL,
+      shape: m.type === 'buy' ? 'arrowUp' : 'arrowDown',
+      text: '신호',
+    }))
+    const pm = []
+    if (paper) {
+      for (const t of (paper.trades || [])) {
+        if (t.market !== market) continue
+        if (t.entryTs) pm.push({ time: Math.floor(t.entryTs / 1000), position: 'belowBar', color: BUY, shape: 'circle', text: '체결매수' })
+        if (t.exitTs) pm.push({ time: Math.floor(t.exitTs / 1000), position: 'aboveBar', color: SELL, shape: 'circle', text: `체결매도 ${t.pnlPct >= 0 ? '+' : ''}${t.pnlPct}%` })
+      }
+      for (const p of (paper.positions || [])) {
+        if (p.market !== market || !p.entryTs) continue
+        pm.push({ time: Math.floor(p.entryTs / 1000), position: 'belowBar', color: BUY, shape: 'circle', text: '체결매수(보유중)' })
+      }
+    }
+    try { s.candle.setMarkers([...strat, ...pm].sort((a, b) => a.time - b.time)) } catch { /* noop */ }
+  }, [signals, paper, market, data, theme])
 
   const candles = data.candles
   const ind = data.indicators

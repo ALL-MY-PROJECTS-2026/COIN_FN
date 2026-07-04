@@ -93,6 +93,9 @@ body {
 .kv td { text-align: right; padding: 6px 10px; font-weight: 600; }
 .log { }  /* 내부 스크롤 없음 — 항목 수를 render에서 제한 */
 .log-row { display: flex; gap: 10px; padding: 5px 10px; border-bottom: 1px solid var(--panel2); font-size: 12.5px; }
+.log-row:hover { background: var(--panel2); }
+.panel { transition: none; }
+.kv tr:hover td, .kv tr:hover th { background: var(--panel2); }
 .log-row .lt { color: var(--muted); flex: 0 0 88px; }
 .log-row .ly { flex: 0 0 52px; font-weight: 700; }
 .log-row .lp { flex: 0 0 84px; text-align: right; }
