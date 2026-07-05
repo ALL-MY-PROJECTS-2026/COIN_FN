@@ -406,7 +406,7 @@ export default function App() {
               )}
             </div>
           )}
-          <div className="side-title">관심종목 <span style={{ fontWeight: 400, textTransform: 'none' }}>거래대금 TOP{watch?.topN ?? 5}</span></div>
+          <div className="side-title">관심종목 <span style={{ fontWeight: 400, textTransform: 'none' }}>{watch?.manual ? `선택 ${watch.markets?.length ?? 0}종목` : `거래대금 TOP${watch?.topN ?? 5}`}</span></div>
           <ul className="watchlist">
             {(watch?.markets ?? MARKETS.map((m) => ({ market: m }))).map((t) => (
               <li key={t.market} className={`wl-item ${t.market === market ? 'sel' : ''}`} onClick={() => setMarket(t.market)}>
