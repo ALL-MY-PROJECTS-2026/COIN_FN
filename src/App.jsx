@@ -66,6 +66,7 @@ export default function App() {
   const [show, setShow] = useState({ ema20: true, ema50: true, vwap: false, bb: false })
   const [strategy, setStrategy] = useState(null)
   const [paper, setPaper] = useState(null)
+  const [watch, setWatch] = useState(null)   // 거래대금 TOP5 관심종목(+ 보유표시)
   const [status, setStatus] = useState('loading')
   const [health, setHealth] = useState(null)
   const [data, setData] = useState({ candles: [], indicators: null })
@@ -104,6 +105,15 @@ export default function App() {
     const pull = () => fetch(`${BN_URL}/api/paper`).then((r) => r.ok ? r.json() : null).then((j) => alive && setPaper(j)).catch(() => {})
     pull()
     const id = setInterval(pull, 20000)
+    return () => { alive = false; clearInterval(id) }
+  }, [])
+
+  // 관심종목(거래대금 TOP5) 폴링 — BN이 실시간 선정
+  useEffect(() => {
+    let alive = true
+    const pull = () => fetch(`${BN_URL}/api/watchlist`).then((r) => r.ok ? r.json() : null).then((j) => alive && j && setWatch(j)).catch(() => {})
+    pull()
+    const id = setInterval(pull, 30000)
     return () => { alive = false; clearInterval(id) }
   }, [])
 
@@ -394,10 +404,18 @@ export default function App() {
               )}
             </div>
           )}
-          <div className="side-title">관심종목</div>
+          <div className="side-title">관심종목 <span style={{ fontWeight: 400, textTransform: 'none' }}>거래대금 TOP{watch?.topN ?? 5}</span></div>
           <ul className="watchlist">
-            {MARKETS.map((m) => (
-              <li key={m} className={`wl-item ${m === market ? 'sel' : ''}`} onClick={() => setMarket(m)}>{m}</li>
+            {(watch?.markets ?? MARKETS.map((m) => ({ market: m }))).map((t) => (
+              <li key={t.market} className={`wl-item ${t.market === market ? 'sel' : ''}`} onClick={() => setMarket(t.market)}>
+                <span>{t.market.replace('KRW-', '')}{t.held && <span className="wl-badge">보유</span>}</span>
+                {t.changeRate != null && <span className="wl-chg" style={{ color: t.changeRate >= 0 ? UP : DOWN }}>{t.changeRate >= 0 ? '+' : ''}{t.changeRate}%</span>}
+              </li>
+            ))}
+            {watch?.heldOutside?.map((t) => (
+              <li key={t.market} className={`wl-item ${t.market === market ? 'sel' : ''}`} onClick={() => setMarket(t.market)} title="TOP5 이탈했지만 보유 중 — 매도 시 제외">
+                <span>{t.market.replace('KRW-', '')}<span className="wl-badge out">보유·이탈</span></span>
+              </li>
             ))}
           </ul>
           <div className="side-title">지표</div>
