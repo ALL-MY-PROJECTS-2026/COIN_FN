@@ -496,11 +496,17 @@ export default function App() {
                     const last = ys[ys.length - 1], up = last >= base;
                     return (
                       <div style={{ padding: '4px 10px 8px' }}>
-                        <div className="panel-sub" style={{ padding: '2px 0', border: 0 }}>자산 추이 ({h.length}포인트 · 5분)</div>
+                        <div className="panel-sub" style={{ padding: '2px 0', border: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <span>자산 추이 ({h.length}포인트 · 5분)</span>
+                          <span style={{ color: up ? UP : DOWN, fontWeight: 700 }}>{fmt(last)}원 <span style={{ fontSize: 10.5 }}>({last - base >= 0 ? '+' : ''}{fmt(last - base)})</span></span>
+                        </div>
                         <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: 'block', height: 44 }}>
                           <line x1="0" y1={y(base)} x2={W} y2={y(base)} stroke="var(--line)" strokeWidth="1" strokeDasharray="3 3" />
                           <path d={d} fill="none" stroke={up ? UP : DOWN} strokeWidth="1.5" />
                         </svg>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, color: 'var(--muted)', marginTop: 3 }}>
+                          <span>저 {fmt(lo)}</span><span>기준 {fmt(base)}</span><span>고 {fmt(hi)}</span>
+                        </div>
                       </div>
                     );
                   })()}
