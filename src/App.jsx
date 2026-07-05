@@ -37,6 +37,28 @@ const CONDLABEL = {
   rsi_overbought: 'RSI과매수', stoch_overbought: '스토캐과매수', macd_dead: 'MACD데드', bb_upper: '볼린저상단',
 }
 
+// 10개 단위 페이징 목록. items는 표시 순서대로(최신 우선) 전달. children은 (item, i) 렌더 함수.
+function Paged({ items, pageSize = 10, empty, children }) {
+  const [page, setPage] = useState(0)
+  const total = items.length
+  const pages = Math.max(1, Math.ceil(total / pageSize))
+  const p = Math.min(page, pages - 1)
+  if (total === 0) return <div className="empty" style={{ padding: 10 }}>{empty}</div>
+  const slice = items.slice(p * pageSize, p * pageSize + pageSize)
+  return (
+    <>
+      <div className="log">{slice.map((it, i) => children(it, p * pageSize + i))}</div>
+      {pages > 1 && (
+        <div className="pager">
+          <button className="btn" disabled={p === 0} onClick={() => setPage(p - 1)}>이전</button>
+          <span className="pager-info">{p + 1} / {pages} · 총 {total}건</span>
+          <button className="btn" disabled={p >= pages - 1} onClick={() => setPage(p + 1)}>다음</button>
+        </div>
+      )}
+    </>
+  )
+}
+
 export default function App() {
   const [market, setMarket] = useState('KRW-BTC')
   const [unit, setUnit] = useState(5)
@@ -487,30 +509,26 @@ export default function App() {
                     </>
                   )}
                   <div className="panel-sub">매매 로그 (매수·매도 전체{paper.eventCount ? ` · ${paper.eventCount}건` : ''})</div>
-                  {paper.events?.length > 0 ? (
-                    <div className="log">
-                      {paper.events.slice().reverse().map((e, i) => (
-                        <div key={i} className="log-row">
-                          <span className="ly" style={{ color: e.type === 'buy' ? UP : DOWN }}>{e.type === 'buy' ? '매수' : '매도'}</span>
-                          <span className="lt">{e.market.replace('KRW-', '')}</span>
-                          <span className="lr">{e.ts ? new Date(e.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : ''}{e.reason ? ` ${e.reason}` : ''}</span>
-                          <span className="lp">{fmt(e.price)}{e.type === 'sell' && e.pnl != null ? <span style={{ color: e.pnl >= 0 ? UP : DOWN }}> {e.pnl >= 0 ? '+' : ''}{fmt(e.pnl)}</span> : ''}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (<div className="empty" style={{ padding: 10 }}>매매 기록 없음</div>)}
+                  <Paged items={paper.events ? paper.events.slice().reverse() : []} empty="매매 기록 없음">
+                    {(e, i) => (
+                      <div key={i} className="log-row">
+                        <span className="ly" style={{ color: e.type === 'buy' ? UP : DOWN }}>{e.type === 'buy' ? '매수' : '매도'}</span>
+                        <span className="lt">{e.market.replace('KRW-', '')}</span>
+                        <span className="lr">{e.ts ? new Date(e.ts).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : ''}{e.reason ? ` ${e.reason}` : ''}</span>
+                        <span className="lp">{fmt(e.price)}{e.type === 'sell' && e.pnl != null ? <span style={{ color: e.pnl >= 0 ? UP : DOWN }}> {e.pnl >= 0 ? '+' : ''}{fmt(e.pnl)}</span> : ''}</span>
+                      </div>
+                    )}
+                  </Paged>
                   <div className="panel-sub">거래 내역 (청산 완료)</div>
-                  {paper.trades?.length > 0 ? (
-                    <div className="log">
-                      {paper.trades.slice().reverse().map((t, i) => (
-                        <div key={i} className="log-row">
-                          <span className="lt">{t.market.replace('KRW-', '')}</span>
-                          <span className="lr">{fmt(t.entry)}→{fmt(t.exit)}</span>
-                          <span className="lp" style={{ color: t.pnl >= 0 ? UP : DOWN }}>{t.pnl >= 0 ? '+' : ''}{fmt(t.pnl)}원 ({t.pnlPct >= 0 ? '+' : ''}{t.pnlPct}%)</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (<div className="empty" style={{ padding: 10 }}>아직 청산된 거래 없음 (보유 중이거나 대기)</div>)}
+                  <Paged items={paper.trades ? paper.trades.slice().reverse() : []} empty="아직 청산된 거래 없음 (보유 중이거나 대기)">
+                    {(t, i) => (
+                      <div key={i} className="log-row">
+                        <span className="lt">{t.market.replace('KRW-', '')}</span>
+                        <span className="lr">{fmt(t.entry)}→{fmt(t.exit)}</span>
+                        <span className="lp" style={{ color: t.pnl >= 0 ? UP : DOWN }}>{t.pnl >= 0 ? '+' : ''}{fmt(t.pnl)}원 ({t.pnlPct >= 0 ? '+' : ''}{t.pnlPct}%)</span>
+                      </div>
+                    )}
+                  </Paged>
                 </div>
               ) : (<div className="empty" style={{ padding: 12 }}>-</div>)}
             </div>
