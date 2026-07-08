@@ -34,9 +34,9 @@ function mergeTail(hist, recent) {
 // 자동매매 조건 라벨(BN strategy 응답 키 → 한글)
 const CONDLABEL = {
   rsi_oversold: 'RSI과매도', bb_lower: '볼린저하단', vol_confirm: '거래량', stoch_oversold: '스토캐과매도', macd_golden: 'MACD골든', adx_trend: 'ADX추세',
-  macd_golden_below0: 'MACD0선아래골든', mfi_oversold: 'MFI과매도', cci_oversold: 'CCI과매도', trend_filter: '추세필터', bullish_pattern: '강세캔들',
+  macd_golden_below0: 'MACD0선아래골든', mfi_oversold: 'MFI과매도', cci_oversold: 'CCI과매도', trend_filter: '추세필터', bullish_pattern: '강세캔들', pivot_support: '피봇지지',
   rsi_overbought: 'RSI과매수', stoch_overbought: '스토캐과매수', macd_dead: 'MACD데드', bb_upper: '볼린저상단',
-  mfi_overbought: 'MFI과매수', cci_overbought: 'CCI과매수', bearish_pattern: '약세캔들',
+  mfi_overbought: 'MFI과매수', cci_overbought: 'CCI과매수', bearish_pattern: '약세캔들', pivot_resistance: '피봇저항',
 }
 
 // 10개 단위 페이징 목록. items는 표시 순서대로(최신 우선) 전달. children은 (item, i) 렌더 함수.
