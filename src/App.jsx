@@ -69,6 +69,7 @@ export default function App() {
   const [strategy, setStrategy] = useState(null)
   const [paper, setPaper] = useState(null)
   const [watch, setWatch] = useState(null)   // 거래대금 TOP5 관심종목(+ 보유표시)
+  const [setups, setSetups] = useState(null) // 강세/약세 셋업 점수(STOCKPIKING 이식)
   const [status, setStatus] = useState('loading')
   const [health, setHealth] = useState(null)
   const [data, setData] = useState({ candles: [], indicators: null })
@@ -126,13 +127,15 @@ export default function App() {
     setStatus('loading'); setErr('')
     try {
       const q = `market=${market}&unit=${unit}&count=200`
-      const [ind, sig, rg, st] = await Promise.all([
+      const [ind, sig, rg, st, su] = await Promise.all([
         fetch(`${BN_URL}/api/indicators?market=${market}&unit=${unit}&count=300`).then((r) => { if (!r.ok) throw new Error(`BN ${r.status}`); return r.json() }),
         fetch(`${BN_URL}/api/strategy-signals?${q}`).then((r) => r.ok ? r.json() : { signals: [] }),
         fetch(`${BN_URL}/api/regime?${q}`).then((r) => r.ok ? r.json() : null),
         fetch(`${BN_URL}/api/strategy?${q}`).then((r) => r.ok ? r.json() : null),
+        fetch(`${BN_URL}/api/setups?market=${market}&unit=${unit}`).then((r) => r.ok ? r.json() : null),
       ])
       if (reqRef.current !== myReq) return  // 뒤늦게 온 이전 마켓 응답 무시(레이스 방지)
+      setSetups(su)
       const candles = ind.candles || []
       if (candles.length === 0) { setData({ candles: [], indicators: null }); setSignals([]); setRegime(null); setStrategy(null); setStatus('empty'); return }
       histRef.current = { candles, ind: ind.indicators, key: `${market}_${unit}` }
@@ -471,6 +474,12 @@ export default function App() {
                     매도({strategy.sell.logic}): {Object.entries(strategy.sell.conditions).map(([k, v]) => `${CONDLABEL[k] || k} ${v ? '✓' : '·'}`).join(' · ') || '조건 없음'}
                   </div>
                   <div className="mut" style={{ padding: '4px 10px', borderTop: '1px solid var(--panel2)' }}>RSI {strategy.values.rsi} · ADX {strategy.values.adx} · Stoch {strategy.values.stochK} · 거래량 {strategy.values.volRatio}배</div>
+                  {setups?.ready && (
+                    <div className="mut" style={{ padding: '4px 10px', borderTop: '1px solid var(--panel2)', fontSize: 11.5 }}>
+                      <span style={{ color: UP, fontWeight: 700 }}>강세 {setups.bullTotal}</span> (추세{setups.bull.strong}·반등{setups.bull.rebound}·급등{setups.bull.surge}) ·{' '}
+                      <span style={{ color: DOWN, fontWeight: 700 }}>약세 {setups.bearTotal}</span> (추세{setups.bear.strong}·반락{setups.bear.rebound}·급락{setups.bear.surge})
+                    </div>
+                  )}
                 </div>
               ) : (<div className="empty" style={{ padding: 12 }}>{strategy?.reason ?? '-'}</div>)}
             </div>
