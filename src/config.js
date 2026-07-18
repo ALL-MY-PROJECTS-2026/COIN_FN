@@ -4,7 +4,7 @@
 // 로컬 개발 시 VITE_BN_URL 환경변수로 override 가능.
 export const BN_URL =
   import.meta.env.VITE_BN_URL ||
-  'https://shadows-allowing-flag-customise.trycloudflare.com'
+  'https://clinical-genres-exactly-hawaii.trycloudflare.com'
 
 // WebSocket URL (https→wss, http→ws)
 export const BN_WS = BN_URL.replace(/^http/, 'ws')
